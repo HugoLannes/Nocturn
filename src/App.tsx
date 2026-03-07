@@ -98,14 +98,15 @@ function App() {
             aria-pressed={activeView === "settings"}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M10.325 4.317a1.724 1.724 0 0 1 3.35 0 1.724 1.724 0 0 0 2.573 1.066 1.724 1.724 0 0 1 2.898 1.674 1.724 1.724 0 0 0 .865 2.665 1.724 1.724 0 0 1 0 3.556 1.724 1.724 0 0 0-.865 2.665 1.724 1.724 0 0 1-2.898 1.674 1.724 1.724 0 0 0-2.573 1.066 1.724 1.724 0 0 1-3.35 0 1.724 1.724 0 0 0-2.573-1.066 1.724 1.724 0 0 1-2.898-1.674 1.724 1.724 0 0 0-.865-2.665 1.724 1.724 0 0 1 0-3.556 1.724 1.724 0 0 0 .865-2.665 1.724 1.724 0 0 1 2.898-1.674 1.724 1.724 0 0 0 2.573-1.066Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M18 6h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M4 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M12 12h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M4 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M16 18h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="16" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="10" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="14" cy="18" r="2" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </button>
 

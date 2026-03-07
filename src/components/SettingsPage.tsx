@@ -12,7 +12,8 @@ export function SettingsPage({
   return (
     <section className="settings-page" aria-label="Settings">
       <header className="settings-header">
-        <h1 className="settings-title">Settings</h1>
+        <span className="layout-eyebrow">Settings</span>
+        <h1 className="layout-title">Set things your way.</h1>
       </header>
 
       <div className="settings-single-column">

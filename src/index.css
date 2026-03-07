@@ -303,24 +303,13 @@ button {
 .settings-header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 4px 2px;
+  gap: 3px;
+  padding: 2px 2px 0;
 }
 
 .settings-category {
   font-family: "Space Grotesk", sans-serif;
   letter-spacing: 0.02em;
-}
-
-.settings-title {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 34px;
-  line-height: 0.96;
-  letter-spacing: -0.04em;
-  background: linear-gradient(180deg, #ffffff 0%, var(--accent-soft) 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .settings-category {
@@ -879,10 +868,6 @@ button {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .settings-title {
-    font-size: 28px;
   }
 
   .settings-single-column {
