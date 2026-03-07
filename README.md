@@ -1,52 +1,58 @@
-# Nocturn
+<p align="center">
+  <img src="src-tauri/icon-source.svg" alt="Nocturn logo" width="132" />
+</p>
 
-![Status](https://img.shields.io/badge/status-prototype-3b82f6?style=for-the-badge)
-![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows)
-![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=000000)
-![Rust](https://img.shields.io/badge/Rust-backend-000000?style=for-the-badge&logo=rust)
-![React](https://img.shields.io/badge/React-frontend-61DAFB?style=for-the-badge&logo=react&logoColor=000000)
+<h1 align="center">Nocturn</h1>
 
-Nocturn is a Windows tray app that blacks out one or more displays with fullscreen black overlays without disabling the video signal.
+<p align="center">
+  Darken one or more screens instantly, without disturbing the rest of your setup.
+</p>
 
-## What It Does Today
+<p align="center">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-111827?style=for-the-badge" />
+  <img alt="Status" src="https://img.shields.io/badge/status-MVP-ec4899?style=for-the-badge" />
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows" />
+</p>
 
-- lists connected displays in a compact control panel
-- toggles a per-display blackout overlay on and off
-- keeps at least one display active at all times
-- moves the panel away before blacking out the display that currently hosts it
-- wakes every blacked-out display from the panel or with a double-tap on `Space`
+> Made for night setups, focus sessions, and multi-screen desks where one monitor can quickly become too much light.
 
-## Current Architecture
+## What Nocturn Is
 
-- `src/` contains the React panel UI and the display state hook
-- `src-tauri/src/commands.rs` is the main orchestration layer for display actions
-- `src-tauri/src/overlay.rs` creates per-display native blackout windows
-- `src-tauri/src/panel.rs` handles panel positioning and relocation
-- `src-tauri/src/shortcut.rs` registers the wake shortcut when at least one display is blacked out
+Nocturn is a small Windows app that lets you turn selected screens fully dark in a second, while keeping the rest of your desktop usable.
 
-## Important Implementation Notes
+It is built for people who want more control over their workspace at night, during focused work, or whenever an extra monitor becomes distracting.
 
-- overlays are separate native Win32 popup windows created from Rust
-- overlay creation is scheduled asynchronously onto Tauri's main thread so the panel command flow stays responsive
-- the backend is the source of truth for blackout state and safety rules
-- the frontend waits for backend confirmation and refreshes from `displays-update` events
-- cursor confinement is currently disabled
+## Why People Use It
 
-## Stack
+- A side monitor is lighting up the whole room at night.
+- You want fewer visual distractions without changing your setup.
+- You want to keep one screen active and quiet the others.
+- You need a fast way to hide and restore screens whenever you want.
 
-- `Tauri 2`
-- `Rust`
-- `React`
-- `TypeScript`
-- `Vite`
+## What You Can Do
+
+- Darken one screen or several at once.
+- Keep your main screen available.
+- Bring every screen back instantly.
+- Use a compact control panel instead of digging through system settings.
+- Keep your preferences from one session to the next.
+
+## Product Direction
+
+Nocturn is designed to feel simple, immediate, and calm.
+
+The goal is not to manage your whole desktop. The goal is to give you one clean action: make unwanted screens disappear, then bring them back just as fast.
+
+## Current State
+
+- Windows only
+- Early public version
+- Focused on the core experience first
+
+## Download
+
+Get the latest Windows installer from GitHub Releases.
 
 ## Documentation
 
-- `docs/product-requirements.md`
-- `docs/design-vision.md`
-- `docs/display-safety-technical-spec.md`
-
-## Dev Notes
-
-- restart `tauri dev` after Rust changes in `src-tauri/`
-- use `cargo check` in `src-tauri/` to validate backend changes quickly
+If you want more context on the product vision and upcoming direction, the main notes live in `docs/`.
