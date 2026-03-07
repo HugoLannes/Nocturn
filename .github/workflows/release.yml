@@ -1,9 +1,11 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -15,6 +17,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure workflow runs from main
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "This workflow must be run from the main branch. Current branch: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,13 +45,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Verify tag matches app version
+      - name: Verify app version metadata
         shell: bash
         run: |
           node <<'EOF'
           const fs = require('node:fs');
 
-          const tag = process.env.GITHUB_REF_NAME.replace(/^v/, '');
           const packageJsonVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
           const tauriConfigVersion = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')).version;
           const cargoToml = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
@@ -51,7 +62,6 @@ jobs:
           }
 
           const versions = {
-            tag,
             packageJson: packageJsonVersion,
             tauriConfig: tauriConfigVersion,
             cargoToml: cargoVersionMatch[1],
@@ -62,16 +72,26 @@ jobs:
             process.exit(1);
           }
 
-          console.log(`Release version ${tag} verified.`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APP_VERSION=${packageJsonVersion}\n`);
+          console.log(`Release version ${packageJsonVersion} verified.`);
           EOF
+
+      - name: Ensure release tag does not already exist
+        shell: bash
+        run: |
+          tag="v${APP_VERSION}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Release tag ${tag} already exists." >&2
+            exit 1
+          fi
 
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Nocturn ${{ github.ref_name }}
+          tagName: v__VERSION__
+          releaseName: Nocturn v__VERSION__
           releaseBody: |
             See the assets attached to this release to install Nocturn.
           releaseDraft: true
