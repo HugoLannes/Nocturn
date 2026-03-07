@@ -1,4 +1,4 @@
-use std::thread;
+use std::{thread, time::Duration};
 
 use log::{error, info};
 use tauri::{
@@ -8,6 +8,7 @@ use tauri::{
 
 use crate::state::DisplayState;
 
+const FADE_DURATION_MS: u64 = 180;
 pub fn overlay_label(display_id: &str) -> String {
     let sanitized: String = display_id
         .chars()
@@ -54,6 +55,7 @@ pub fn show_overlay(app: &AppHandle, display: &DisplayState) -> Result<(), Strin
             )
             .decorations(false)
             .always_on_top(true)
+            .transparent(true)
             .skip_taskbar(true)
             .focused(false)
             .resizable(false)
@@ -62,7 +64,7 @@ pub fn show_overlay(app: &AppHandle, display: &DisplayState) -> Result<(), Strin
             .shadow(false)
             .inner_size(64.0, 64.0)
             .position(0.0, 0.0)
-            .background_color(Color(0, 0, 0, 255))
+            .background_color(Color(0, 0, 0, 0))
             .build();
 
             match result {
@@ -117,7 +119,31 @@ pub fn close_overlay(app: &AppHandle, display_id: &str) -> Result<(), String> {
     info!("close_overlay: {}", label);
 
     if let Some(window) = app.get_webview_window(&label) {
-        window.destroy().map_err(|e| e.to_string())?;
+        window
+            .eval("window.startFadeOut?.()")
+            .map_err(|e| e.to_string())?;
+
+        let app_clone = app.clone();
+        let label_clone = label.clone();
+
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(FADE_DURATION_MS));
+
+            let app_for_destroy = app_clone.clone();
+            let destroy_label = label_clone.clone();
+            if let Err(e) = app_clone.run_on_main_thread(move || {
+                if let Some(window) = app_for_destroy.get_webview_window(&label_clone) {
+                    if let Err(e) = window.destroy() {
+                        error!("close_overlay: failed to destroy {}: {}", label_clone, e);
+                    }
+                }
+            }) {
+                error!(
+                    "close_overlay: failed to schedule destroy for {}: {}",
+                    destroy_label, e
+                );
+            }
+        });
     }
 
     Ok(())
