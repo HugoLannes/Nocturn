@@ -118,6 +118,30 @@ pub fn unblank_all(app: AppHandle, state: State<'_, SharedState>) -> Result<(), 
 }
 
 #[command]
+pub fn focus_primary(
+    app: AppHandle,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let started_at = Instant::now();
+    info!("focus_primary: start");
+    let _guard = ToggleGuard::acquire(state.inner())?;
+    let result = focus_primary_internal(&app, state.inner());
+    match &result {
+        Ok(message) => info!(
+            "focus_primary: success message={}, elapsed={}ms",
+            message,
+            started_at.elapsed().as_millis()
+        ),
+        Err(error) => error!(
+            "focus_primary: failed error={}, elapsed={}ms",
+            error,
+            started_at.elapsed().as_millis()
+        ),
+    }
+    result
+}
+
+#[command]
 pub fn hide_window(app: AppHandle) -> Result<(), String> {
     panel::hide_panel(&app)
 }
@@ -160,6 +184,90 @@ pub fn unblank_all_internal(app: &AppHandle, state: &SharedState) -> Result<(), 
     );
 
     Ok(())
+}
+
+pub fn focus_primary_internal(app: &AppHandle, state: &SharedState) -> Result<String, String> {
+    let started_at = Instant::now();
+    ensure_displays_loaded(app, state)?;
+
+    let primary_display = {
+        let state = state.lock().expect("state poisoned");
+        state
+            .displays
+            .values()
+            .find(|display| display.is_primary)
+            .cloned()
+            .ok_or_else(|| "Primary display not found.".to_string())?
+    };
+
+    let secondary_targets = {
+        let state = state.lock().expect("state poisoned");
+        state
+            .displays
+            .values()
+            .filter(|display| !display.is_primary && !display.is_blacked_out)
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+
+    if !primary_display.is_blacked_out && secondary_targets.is_empty() {
+        info!(
+            "focus_primary_internal: already focused in {}ms",
+            started_at.elapsed().as_millis()
+        );
+        return Ok("Focus mode already active.".to_string());
+    }
+
+    if !panel_is_on_display(app, &primary_display) {
+        panel::move_panel_to_display(app, &primary_display)?;
+    }
+
+    if primary_display.is_blacked_out {
+        info!(
+            "focus_primary_internal: restoring primary display {}",
+            primary_display.id
+        );
+        overlay::close_overlay(app, &primary_display.id)?;
+
+        let mut state = state.lock().expect("state poisoned");
+        if let Some(display) = state.displays.get_mut(&primary_display.id) {
+            display.is_blacked_out = false;
+        }
+    }
+
+    for display in &secondary_targets {
+        info!(
+            "focus_primary_internal: blacking out secondary display {}",
+            display.id
+        );
+        overlay::show_overlay(app, display)?;
+    }
+
+    if !secondary_targets.is_empty() {
+        let secondary_ids = secondary_targets
+            .iter()
+            .map(|display| display.id.clone())
+            .collect::<HashSet<_>>();
+
+        let mut state = state.lock().expect("state poisoned");
+        for display_id in &secondary_ids {
+            if let Some(display) = state.displays.get_mut(display_id) {
+                display.is_blacked_out = true;
+            }
+        }
+    }
+
+    sync_runtime_behaviors(app, state)?;
+    emit_displays_update(app, state)?;
+
+    info!(
+        "focus_primary_internal: done restored_primary={} secondary_count={} elapsed={}ms",
+        primary_display.is_blacked_out,
+        secondary_targets.len(),
+        started_at.elapsed().as_millis()
+    );
+
+    Ok("Focus mode enabled.".to_string())
 }
 
 fn toggle_display_internal(

@@ -223,7 +223,7 @@ button {
 
 .layout-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   padding: 2px 2px 0;
@@ -256,40 +256,69 @@ button {
   text-overflow: ellipsis;
 }
 
-.layout-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(74px, 1fr));
-  gap: 8px;
-  min-width: 252px;
-}
-
-.layout-summary-card {
+.focus-mode-btn {
   display: flex;
+  min-width: 168px;
   flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
-  border: 1px solid var(--border);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
-    rgba(255, 255, 255, 0.02);
-}
-
-.layout-summary-value {
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.05em;
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.14), rgba(255, 255, 255, 0.03) 46%),
+    rgba(255, 255, 255, 0.03);
   color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 100ms ease,
+    opacity 140ms ease;
 }
 
-.layout-summary-label {
+.focus-mode-btn:not(:disabled):hover {
+  border-color: rgba(var(--accent-rgb), 0.34);
+  background:
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.2), rgba(255, 255, 255, 0.04) 46%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 24px rgba(var(--accent-rgb), 0.18);
+  transform: translateY(-1px);
+}
+
+.focus-mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.focus-mode-btn-active {
+  border-color: rgba(var(--accent-rgb), 0.44);
+  background:
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.24), rgba(var(--accent-rgb), 0.08) 58%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 28px rgba(var(--accent-rgb), 0.22);
+}
+
+.focus-mode-btn-label {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.focus-mode-btn-hint {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.2;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.56);
+  color: rgba(226, 232, 240, 0.64);
 }
 
 .settings-page {
@@ -849,8 +878,9 @@ button {
     font-size: 20px;
   }
 
-  .layout-summary {
+  .focus-mode-btn {
     min-width: 0;
+    width: 100%;
   }
 
   .titlebar-actions {

@@ -29,6 +29,7 @@ function App() {
     blackoutCount,
     toggleDisplay,
     wakeAll,
+    focusPrimary,
     allowCursorExitActiveDisplays,
     setAllowCursorExitActiveDisplays,
     lastActiveDisplayId,
@@ -149,6 +150,7 @@ function App() {
             isMutating={isMutating}
             pendingDisplayId={pendingDisplayId}
             lastActiveDisplayId={lastActiveDisplayId}
+            onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
           />
         )}

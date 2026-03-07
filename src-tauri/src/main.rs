@@ -29,6 +29,7 @@ fn main() {
             commands::set_allow_cursor_exit_active_displays,
             commands::toggle_display,
             commands::unblank_all,
+            commands::focus_primary,
             commands::hide_window,
             commands::close_app
         ])

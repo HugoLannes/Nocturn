@@ -117,6 +117,20 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
+  const focusPrimary = useCallback(async () => {
+    setIsMutating(true);
+    setPendingDisplayId(null);
+
+    try {
+      await withTimeout(invoke("focus_primary"), "Enabling focus mode");
+    } catch (error) {
+      console.error("Failed to enable focus mode:", error);
+      void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
   const setAllowCursorExitActiveDisplays = useCallback(async (allowed: boolean) => {
     setIsMutating(true);
 
@@ -157,6 +171,7 @@ export function useDisplays() {
     loadDisplays,
     toggleDisplay,
     wakeAll,
+    focusPrimary,
     setAllowCursorExitActiveDisplays,
     lastActiveDisplayId,
   };
