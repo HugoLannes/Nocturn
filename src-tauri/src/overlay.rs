@@ -69,9 +69,9 @@ pub fn show_overlay(app: &AppHandle, display: &DisplayState) -> Result<(), Strin
 
             match result {
                 Ok(window) => {
-                    if let Err(e) = window.set_ignore_cursor_events(true) {
+                    if let Err(e) = window.set_ignore_cursor_events(false) {
                         error!(
-                            "show_overlay: failed to ignore cursor events for {}: {}",
+                            "show_overlay: failed to capture cursor events for {}: {}",
                             label_clone, e
                         );
                     }
