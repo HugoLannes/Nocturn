@@ -76,8 +76,8 @@ button {
 }
 
 .titlebar-logo {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   filter:
     drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.72))

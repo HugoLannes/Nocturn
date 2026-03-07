@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import crescentLogo from "../crescent.png";
+import appLogo from "./assets/nocturn-mark.svg";
+import packageInfo from "../package.json";
 import { DisplayLayout } from "./components/DisplayLayout";
 import { SettingsPage } from "./components/SettingsPage";
 import { useDisplays } from "./hooks/useDisplays";
@@ -8,7 +9,7 @@ import { useDisplays } from "./hooks/useDisplays";
 type AppView = "displays" | "settings";
 
 function App() {
-  const appVersion = "v0.0.0";
+  const appVersion = `v${packageInfo.version}`;
   const {
     displays,
     isLoading,
@@ -68,7 +69,7 @@ function App() {
       {showSplash && (
         <div className={`startup-splash ${isSplashExiting ? "startup-splash-exit" : ""}`} aria-hidden={isSplashExiting}>
           <div className="startup-splash-mark">
-            <img src={crescentLogo} alt="Nocturn logo" className="startup-splash-logo" />
+            <img src={appLogo} alt="Nocturn logo" className="startup-splash-logo" />
           </div>
           <div className="startup-splash-copy">
             <span className="startup-splash-name">Nocturn</span>
@@ -79,7 +80,7 @@ function App() {
 
       <header className="titlebar" data-tauri-drag-region>
         <div className="titlebar-brand">
-          <img src={crescentLogo} alt="Nocturn logo" className="titlebar-logo" />
+          <img src={appLogo} alt="Nocturn logo" className="titlebar-logo" />
           <span className="titlebar-name">Nocturn</span>
           <span className="titlebar-status status-ok">
             <span className="status-dot" />
