@@ -105,13 +105,14 @@ The frontend receives a simplified payload with:
 
 ### 5.1 Overlay Representation
 
-Each blacked-out display is represented by a dedicated Tauri webview window.
+Each blacked-out display is represented by a dedicated native Win32 popup window.
 
 - label format: `overlay-<sanitized-display-id>`
-- document: `public/overlay.html`
-- background: black
+- background: opaque black
 - decorations: disabled
 - always-on-top: enabled
+- activation: disabled with `WS_EX_NOACTIVATE`
+- task switching visibility: hidden with `WS_EX_TOOLWINDOW`
 - skip taskbar: enabled
 
 ### 5.2 Why Overlay Creation Is Asynchronous
@@ -122,14 +123,14 @@ Current behavior:
 
 1. `toggle_display` requests overlay creation
 2. `show_overlay` spawns a worker thread
-3. the worker schedules window creation on the Tauri main thread
-4. the command returns without waiting for the window builder to finish
+3. the worker schedules native window creation on the Tauri main thread
+4. the command returns without waiting for the Win32 window call sequence to finish
 
-This avoids the command flow hanging while Windows or the webview runtime is creating the new overlay window.
+This avoids the command flow hanging while Windows is creating the new native overlay window.
 
 ### 5.3 Overlay Input Behavior
 
-Overlay windows ignore cursor events via `set_ignore_cursor_events(true)` so they do not capture mouse input intended for the active display workflow.
+Overlay windows are native popup windows that cover the target display without taking focus from the panel.
 
 ---
 
@@ -218,7 +219,7 @@ The `Wake all displays` button is enabled only when at least one display is blac
 
 ## 9. Known Limitations
 
-- overlay creation is asynchronous, so backend state may update slightly before the overlay is visibly ready
+- overlay creation is asynchronous, so backend state may update slightly before the blackout window is visibly ready
 - display topology is cached after initial load and not fully re-read on every command
 - per-display overlay lifecycle is tracked implicitly through window labels rather than a dedicated overlay registry
 - logs were temporarily expanded during debugging and can be reduced once the flow is considered stable
@@ -237,4 +238,4 @@ The `Wake all displays` button is enabled only when at least one display is blac
 
 ## 11. Current Invariant
 
-> Nocturn keeps one display active, keeps the panel reachable, and applies blackout overlays without blocking the panel command flow.
+> Nocturn keeps one display active, keeps the panel reachable, and applies native blackout overlays without blocking the panel command flow.
