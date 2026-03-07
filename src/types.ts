@@ -16,4 +16,5 @@ export type DisplayUpdatePayload = {
   displays: Display[];
   activeDisplayCount: number;
   blackoutCount: number;
+  allowCursorExitActiveDisplays: boolean;
 };

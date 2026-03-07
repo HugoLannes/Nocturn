@@ -2,6 +2,7 @@ mod commands;
 mod cursor;
 mod overlay;
 mod panel;
+mod settings;
 mod shortcut;
 mod state;
 
@@ -24,12 +25,21 @@ fn main() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::get_displays,
+            commands::set_allow_cursor_exit_active_displays,
             commands::toggle_display,
             commands::unblank_all,
             commands::hide_window,
             commands::close_app
         ])
         .setup(|app| {
+            let loaded_settings = settings::load_settings(app.handle())?;
+            let state = app.state::<SharedState>();
+
+            {
+                let mut state = state.lock().expect("state poisoned");
+                state.settings = loaded_settings;
+            }
+
             let show_panel = MenuItemBuilder::new("Show Panel")
                 .id("show-panel")
                 .build(app)?;
@@ -79,7 +89,6 @@ fn main() {
                 }
             });
 
-            let state = app.state::<SharedState>();
             let _ = commands::get_displays(app.handle().clone(), state);
 
             Ok(())

@@ -10,6 +10,7 @@ type UseDisplaysState = {
   feedback: string | null;
   activeDisplayCount: number;
   blackoutCount: number;
+  allowCursorExitActiveDisplays: boolean;
 };
 
 const INITIAL_STATE: UseDisplaysState = {
@@ -19,6 +20,7 @@ const INITIAL_STATE: UseDisplaysState = {
   feedback: null,
   activeDisplayCount: 0,
   blackoutCount: 0,
+  allowCursorExitActiveDisplays: true,
 };
 
 const COMMAND_TIMEOUT_MS = 5000;
@@ -55,6 +57,7 @@ export function useDisplays() {
         displays: payload.displays,
         activeDisplayCount: payload.activeDisplayCount,
         blackoutCount: payload.blackoutCount,
+        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
         error: preserveError ? current.error : null,
         isLoading: false,
       }));
@@ -78,6 +81,7 @@ export function useDisplays() {
         displays: event.payload.displays,
         activeDisplayCount: event.payload.activeDisplayCount,
         blackoutCount: event.payload.blackoutCount,
+        allowCursorExitActiveDisplays: event.payload.allowCursorExitActiveDisplays,
         error: null,
         isLoading: false,
       }));
@@ -134,6 +138,37 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
+  const setAllowCursorExitActiveDisplays = useCallback(async (allowed: boolean) => {
+    setIsMutating(true);
+    setState((current) => ({ ...current, feedback: null, error: null }));
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("set_allow_cursor_exit_active_displays", { allowed }),
+        "Updating cursor setting",
+      );
+
+      setState((current) => ({
+        ...current,
+        displays: payload.displays,
+        activeDisplayCount: payload.activeDisplayCount,
+        blackoutCount: payload.blackoutCount,
+        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+        feedback: allowed
+          ? "Mouse can now leave the active display area."
+          : "Mouse is now confined to the active display area.",
+      }));
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+      void loadDisplays(true);
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
   const lastActiveDisplayId = useMemo(() => {
     if (state.activeDisplayCount !== 1) {
       return null;
@@ -150,6 +185,7 @@ export function useDisplays() {
     loadDisplays,
     toggleDisplay,
     wakeAll,
+    setAllowCursorExitActiveDisplays,
     lastActiveDisplayId,
   };
 }

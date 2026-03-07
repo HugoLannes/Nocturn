@@ -2,7 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import crescentLogo from "../crescent.png";
 import { DisplayLayout } from "./components/DisplayLayout";
+import { SettingsPage } from "./components/SettingsPage";
 import { useDisplays } from "./hooks/useDisplays";
+
+type AppView = "displays" | "settings";
 
 function App() {
   const appVersion = "v0.0.0";
@@ -16,8 +19,11 @@ function App() {
     blackoutCount,
     toggleDisplay,
     wakeAll,
+    allowCursorExitActiveDisplays,
+    setAllowCursorExitActiveDisplays,
     lastActiveDisplayId,
   } = useDisplays();
+  const [activeView, setActiveView] = useState<AppView>("displays");
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashExiting, setIsSplashExiting] = useState(false);
   const [hasMetMinimumSplash, setHasMetMinimumSplash] = useState(false);
@@ -81,7 +87,27 @@ function App() {
           </span>
         </div>
 
-        <div className="titlebar-controls">
+        <div className="titlebar-actions">
+          <button
+            type="button"
+            className={`toolbar-btn ${activeView === "settings" ? "toolbar-btn-active" : ""}`}
+            onClick={() => setActiveView((currentView) => (currentView === "settings" ? "displays" : "settings"))}
+            aria-label={activeView === "settings" ? "Close settings" : "Open settings"}
+            aria-pressed={activeView === "settings"}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M10.325 4.317a1.724 1.724 0 0 1 3.35 0 1.724 1.724 0 0 0 2.573 1.066 1.724 1.724 0 0 1 2.898 1.674 1.724 1.724 0 0 0 .865 2.665 1.724 1.724 0 0 1 0 3.556 1.724 1.724 0 0 0-.865 2.665 1.724 1.724 0 0 1-2.898 1.674 1.724 1.724 0 0 0-2.573 1.066 1.724 1.724 0 0 1-3.35 0 1.724 1.724 0 0 0-2.573-1.066 1.724 1.724 0 0 1-2.898-1.674 1.724 1.724 0 0 0-.865-2.665 1.724 1.724 0 0 1 0-3.556 1.724 1.724 0 0 0 .865-2.665 1.724 1.724 0 0 1 2.898-1.674 1.724 1.724 0 0 0 2.573-1.066Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <div className="titlebar-controls">
           <button
             type="button"
             className="wc-btn wc-minimize"
@@ -102,33 +128,50 @@ function App() {
               <path d="M1 1l7 7M8 1l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
+          </div>
         </div>
       </header>
 
       <main className="content">
-        <DisplayLayout
-          displays={displays}
-          isMutating={isMutating}
-          pendingDisplayId={pendingDisplayId}
-          lastActiveDisplayId={lastActiveDisplayId}
-          onToggle={(id) => void toggleDisplay(id)}
-        />
+        {activeView === "settings" ? (
+          <SettingsPage
+            allowCursorExitActiveDisplays={allowCursorExitActiveDisplays}
+            isMutating={isMutating}
+            onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
+          />
+        ) : (
+          <DisplayLayout
+            displays={displays}
+            isMutating={isMutating}
+            pendingDisplayId={pendingDisplayId}
+            lastActiveDisplayId={lastActiveDisplayId}
+            onToggle={(id) => void toggleDisplay(id)}
+          />
+        )}
       </main>
 
       <footer className="footer">
         <div className="terminal-panel" aria-live="polite">
           <span className="terminal-prompt">$</span>
-          <span className={statusClassName}>{statusMessage ?? "System idle. Waiting for display action."}</span>
+          <span className={statusClassName}>
+            {activeView === "settings"
+              ? allowCursorExitActiveDisplays
+                ? "The cursor can leave the active display area."
+                : "The cursor is confined to the active display area."
+              : statusMessage ?? "System idle. Waiting for display action."}
+          </span>
         </div>
 
-        <button
-          type="button"
-          className="wake-btn"
-          onClick={() => void wakeAll()}
-          disabled={blackoutCount === 0 || isMutating}
-        >
-          Wake all displays
-        </button>
+        {activeView !== "settings" && (
+          <button
+            type="button"
+            className="wake-btn"
+            onClick={() => void wakeAll()}
+            disabled={blackoutCount === 0 || isMutating}
+          >
+            Wake all displays
+          </button>
+        )}
       </footer>
     </div>
   );

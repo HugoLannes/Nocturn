@@ -8,7 +8,7 @@ use log::{error, info, warn};
 use tauri::{command, AppHandle, Emitter, Manager, Monitor, State};
 
 use crate::{
-    cursor, overlay, panel, shortcut,
+    cursor, overlay, panel, settings, shortcut,
     state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
 };
 
@@ -40,6 +40,34 @@ pub fn get_displays(
     state: State<'_, SharedState>,
 ) -> Result<DisplayUpdatePayload, String> {
     ensure_displays_loaded(&app, state.inner())?;
+    sync_runtime_behaviors(&app, state.inner())?;
+    build_payload(&app, state.inner())
+}
+
+#[command]
+pub fn set_allow_cursor_exit_active_displays(
+    app: AppHandle,
+    state: State<'_, SharedState>,
+    allowed: bool,
+) -> Result<DisplayUpdatePayload, String> {
+    let previous_settings;
+    let next_settings;
+
+    {
+        let mut state = state.lock().expect("state poisoned");
+        previous_settings = state.settings.clone();
+        state.settings.allow_cursor_exit_active_displays = allowed;
+        next_settings = state.settings.clone();
+    }
+
+    if let Err(error) = settings::save_settings(&app, &next_settings) {
+        let mut state = state.lock().expect("state poisoned");
+        state.settings = previous_settings;
+        return Err(error);
+    }
+
+    sync_runtime_behaviors(&app, state.inner())?;
+    emit_displays_update(&app, state.inner())?;
     build_payload(&app, state.inner())
 }
 
@@ -274,6 +302,7 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         displays,
         active_display_count,
         blackout_count,
+        allow_cursor_exit_active_displays: state.settings.allow_cursor_exit_active_displays,
     })
 }
 

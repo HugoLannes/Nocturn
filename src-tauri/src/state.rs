@@ -1,12 +1,7 @@
 use serde::Serialize;
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Instant,
-};
+use std::{collections::HashMap, time::Instant};
+
+use crate::settings::AppSettings;
 
 #[derive(Clone, Debug)]
 pub struct DisplayState {
@@ -43,40 +38,41 @@ pub struct DisplayUpdatePayload {
     pub displays: Vec<DisplayInfo>,
     pub active_display_count: usize,
     pub blackout_count: usize,
+    pub allow_cursor_exit_active_displays: bool,
 }
 
 pub struct NocturnState {
     pub displays: HashMap<String, DisplayState>,
+    pub settings: AppSettings,
     pub shortcut_registered: bool,
     pub toggle_in_progress: bool,
     pub last_space_press_at: Option<Instant>,
-    pub cursor_stop_flag: Option<Arc<AtomicBool>>,
 }
 
 impl Default for NocturnState {
     fn default() -> Self {
         Self {
             displays: HashMap::new(),
+            settings: AppSettings::default(),
             shortcut_registered: false,
             toggle_in_progress: false,
             last_space_press_at: None,
-            cursor_stop_flag: None,
         }
     }
 }
 
 impl NocturnState {
     pub fn active_display_count(&self) -> usize {
-        self.displays.values().filter(|display| !display.is_blacked_out).count()
+        self.displays
+            .values()
+            .filter(|display| !display.is_blacked_out)
+            .count()
     }
 
     pub fn blackout_count(&self) -> usize {
-        self.displays.values().filter(|display| display.is_blacked_out).count()
-    }
-
-    pub fn reset_cursor_loop(&mut self) {
-        if let Some(stop_flag) = self.cursor_stop_flag.take() {
-            stop_flag.store(true, Ordering::Relaxed);
-        }
+        self.displays
+            .values()
+            .filter(|display| display.is_blacked_out)
+            .count()
     }
 }
