@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { DisplayCard } from "./components/DisplayCard";
+import { useEffect, useState } from "react";
+import crescentLogo from "../crescent.png";
+import { DisplayLayout } from "./components/DisplayLayout";
 import { useDisplays } from "./hooks/useDisplays";
 
 function App() {
@@ -15,6 +17,33 @@ function App() {
     wakeAll,
     lastActiveDisplayId,
   } = useDisplays();
+  const [showSplash, setShowSplash] = useState(true);
+  const [isSplashExiting, setIsSplashExiting] = useState(false);
+  const [hasMetMinimumSplash, setHasMetMinimumSplash] = useState(false);
+
+  useEffect(() => {
+    const minimumSplashTimer = window.setTimeout(() => {
+      setHasMetMinimumSplash(true);
+    }, 900);
+
+    return () => window.clearTimeout(minimumSplashTimer);
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !hasMetMinimumSplash) {
+      return;
+    }
+
+    setIsSplashExiting(true);
+
+    const removeTimer = window.setTimeout(() => {
+      setShowSplash(false);
+    }, 280);
+
+    return () => {
+      window.clearTimeout(removeTimer);
+    };
+  }, [hasMetMinimumSplash, isLoading]);
 
   const statusMessage = isLoading
     ? "Scanning displays..."
@@ -29,9 +58,21 @@ function App() {
 
   return (
     <div className="app">
+      {showSplash && (
+        <div className={`startup-splash ${isSplashExiting ? "startup-splash-exit" : ""}`} aria-hidden={isSplashExiting}>
+          <div className="startup-splash-mark">
+            <img src={crescentLogo} alt="Nocturn logo" className="startup-splash-logo" />
+          </div>
+          <div className="startup-splash-copy">
+            <span className="startup-splash-name">Nocturn</span>
+            <span className="startup-splash-status">Preparing your displays...</span>
+          </div>
+        </div>
+      )}
+
       <header className="titlebar" data-tauri-drag-region>
         <div className="titlebar-brand">
-          <span className="titlebar-icon">⚡</span>
+          <img src={crescentLogo} alt="Nocturn logo" className="titlebar-logo" />
           <span className="titlebar-name">Nocturn</span>
           <span className={`titlebar-status ${blackoutCount > 0 ? "status-alert" : "status-ok"}`}>
             <span className="status-dot" />
@@ -68,18 +109,13 @@ function App() {
       </header>
 
       <main className="content">
-        <div className="displays-list">
-          {displays.map((display) => (
-            <DisplayCard
-              key={display.id}
-              display={display}
-              isMutating={isMutating}
-              isPending={pendingDisplayId === display.id}
-              isLastActiveDisplay={lastActiveDisplayId === display.id && !display.isBlackedOut}
-              onToggle={(id) => void toggleDisplay(id)}
-            />
-          ))}
-        </div>
+        <DisplayLayout
+          displays={displays}
+          isMutating={isMutating}
+          pendingDisplayId={pendingDisplayId}
+          lastActiveDisplayId={lastActiveDisplayId}
+          onToggle={(id) => void toggleDisplay(id)}
+        />
       </main>
 
       <footer className="footer">

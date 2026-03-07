@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Nocturn",
-        "width": 420,
-        "height": 640,
+        "width": 720,
+        "height": 520,
         "resizable": false,
         "fullscreen": false,
         "visible": true,

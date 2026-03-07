@@ -2,8 +2,8 @@ use tauri::{AppHandle, Manager, Monitor, PhysicalPosition, Position};
 
 use crate::state::DisplayState;
 
-pub const PANEL_WIDTH: i32 = 420;
-pub const PANEL_HEIGHT: i32 = 640;
+pub const PANEL_WIDTH: i32 = 720;
+pub const PANEL_HEIGHT: i32 = 520;
 
 pub fn build_display_id(name: Option<&String>, x: i32, y: i32, width: u32, height: u32) -> String {
     let normalized_name = name.cloned().unwrap_or_else(|| "display".to_string());
