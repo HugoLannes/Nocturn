@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vscode/
+.claude/
+
+src-tauri/target/
+src-tauri/gen/
+
+*.log

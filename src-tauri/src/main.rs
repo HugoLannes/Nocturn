@@ -1,0 +1,90 @@
+mod commands;
+mod cursor;
+mod overlay;
+mod panel;
+mod shortcut;
+mod state;
+
+use std::sync::{Arc, Mutex};
+
+use commands::SharedState;
+use state::NocturnState;
+use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Manager, WindowEvent,
+};
+
+fn main() {
+    let shared_state: SharedState = Arc::new(Mutex::new(NocturnState::default()));
+
+    tauri::Builder::default()
+        .manage(shared_state)
+        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            commands::get_displays,
+            commands::toggle_display,
+            commands::unblank_all,
+            commands::hide_window,
+            commands::close_app
+        ])
+        .setup(|app| {
+            let show_panel = MenuItemBuilder::new("Show Panel")
+                .id("show-panel")
+                .build(app)?;
+            let wake_all = MenuItemBuilder::new("Wake All").id("wake-all").build(app)?;
+            let quit = MenuItemBuilder::new("Quit").id("quit").build(app)?;
+
+            let tray_menu = MenuBuilder::new(app)
+                .items(&[&show_panel, &wake_all, &quit])
+                .build()?;
+
+            TrayIconBuilder::new()
+                .tooltip("Nocturn")
+                .menu(&tray_menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let _ = panel::show_panel(tray.app_handle());
+                    }
+                })
+                .build(app)?;
+
+            app.on_menu_event(|app, event| match event.id().as_ref() {
+                "show-panel" => {
+                    let _ = panel::show_panel(app);
+                }
+                "wake-all" => {
+                    let state = app.state::<SharedState>();
+                    let _ = commands::unblank_all_internal(app, state.inner());
+                }
+                "quit" => app.exit(0),
+                _ => {}
+            });
+
+            let panel_window = app
+                .get_webview_window("main")
+                .ok_or("Missing main panel window")?;
+
+            let app_handle = app.handle().clone();
+            panel_window.on_window_event(move |event| {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = panel::hide_panel(&app_handle);
+                }
+            });
+
+            let state = app.state::<SharedState>();
+            let _ = commands::get_displays(app.handle().clone(), state);
+
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running Nocturn");
+}
