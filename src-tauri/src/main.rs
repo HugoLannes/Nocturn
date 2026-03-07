@@ -74,9 +74,8 @@ fn main() {
 
             let app_handle = app.handle().clone();
             panel_window.on_window_event(move |event| {
-                if let WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = panel::hide_panel(&app_handle);
+                if let WindowEvent::CloseRequested { .. } = event {
+                    app_handle.exit(0);
                 }
             });
 
