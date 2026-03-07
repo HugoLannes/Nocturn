@@ -45,6 +45,7 @@ function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = COMMAND_
 export function useDisplays() {
   const [state, setState] = useState<UseDisplaysState>(INITIAL_STATE);
   const [isMutating, setIsMutating] = useState(false);
+  const [pendingDisplayId, setPendingDisplayId] = useState<string | null>(null);
 
   const loadDisplays = useCallback(async (preserveError = false) => {
     try {
@@ -90,8 +91,8 @@ export function useDisplays() {
   }, [loadDisplays]);
 
   const toggleDisplay = useCallback(async (displayId: string) => {
-    let hadError = false;
     setIsMutating(true);
+    setPendingDisplayId(displayId);
     setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
@@ -104,16 +105,16 @@ export function useDisplays() {
         ...current,
         error: error instanceof Error ? error.message : String(error),
       }));
-      hadError = true;
+      void loadDisplays(true);
     } finally {
       setIsMutating(false);
-      void loadDisplays(hadError);
+      setPendingDisplayId(null);
     }
   }, [loadDisplays]);
 
   const wakeAll = useCallback(async () => {
-    let hadError = false;
     setIsMutating(true);
+    setPendingDisplayId(null);
     setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
@@ -127,10 +128,9 @@ export function useDisplays() {
         ...current,
         error: error instanceof Error ? error.message : String(error),
       }));
-      hadError = true;
+      void loadDisplays(true);
     } finally {
       setIsMutating(false);
-      void loadDisplays(hadError);
     }
   }, [loadDisplays]);
 
@@ -146,6 +146,7 @@ export function useDisplays() {
   return {
     ...state,
     isMutating,
+    pendingDisplayId,
     loadDisplays,
     toggleDisplay,
     wakeAll,

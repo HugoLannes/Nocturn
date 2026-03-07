@@ -3,6 +3,7 @@ import type { Display } from "../types";
 type DisplayCardProps = {
   display: Display;
   isMutating: boolean;
+  isPending: boolean;
   isLastActiveDisplay: boolean;
   onToggle: (displayId: string) => void;
 };
@@ -16,18 +17,21 @@ function cleanName(raw: string): string {
 export function DisplayCard({
   display,
   isMutating,
+  isPending,
   isLastActiveDisplay,
   onToggle,
 }: DisplayCardProps) {
   const isDisabled = isMutating || isLastActiveDisplay || !display.canBlackout;
+  const showDisabledState = (isLastActiveDisplay || !display.canBlackout) && !isPending;
   const name = cleanName(display.name);
 
   return (
     <button
       type="button"
-      className={`display-card ${display.isBlackedOut ? "card-off" : "card-on"} ${isDisabled ? "card-disabled" : ""}`}
+      className={`display-card ${display.isBlackedOut ? "card-off" : "card-on"} ${showDisabledState ? "card-disabled" : ""} ${isPending ? "card-pending" : ""}`}
       onClick={() => onToggle(display.id)}
       disabled={isDisabled}
+      aria-busy={isPending}
     >
       <div className="card-info">
         <div className="card-name-row">
@@ -41,7 +45,7 @@ export function DisplayCard({
 
       <div className="card-state">
         <span className={`state-dot ${display.isBlackedOut ? "dot-off" : "dot-on"}`} />
-        <span className="state-label">{display.isBlackedOut ? "OFF" : "ON"}</span>
+        <span className="state-label">{isPending ? "..." : display.isBlackedOut ? "OFF" : "ON"}</span>
       </div>
     </button>
   );

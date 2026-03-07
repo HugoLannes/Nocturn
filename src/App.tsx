@@ -9,11 +9,23 @@ function App() {
     error,
     feedback,
     isMutating,
+    pendingDisplayId,
     blackoutCount,
     toggleDisplay,
     wakeAll,
     lastActiveDisplayId,
   } = useDisplays();
+
+  const statusMessage = isLoading
+    ? "Scanning displays..."
+    : error
+      ? error
+      : feedback;
+  const statusClassName = error
+    ? "terminal-line state-error"
+    : feedback
+      ? "terminal-line state-feedback"
+      : "terminal-line";
 
   return (
     <div className="app">
@@ -56,16 +68,13 @@ function App() {
       </header>
 
       <main className="content">
-        {isLoading && <p className="state-msg">Scanning displays…</p>}
-        {error && <p className="state-msg state-error">{error}</p>}
-        {!error && feedback && <p className="state-msg state-feedback">{feedback}</p>}
-
         <div className="displays-list">
           {displays.map((display) => (
             <DisplayCard
               key={display.id}
               display={display}
               isMutating={isMutating}
+              isPending={pendingDisplayId === display.id}
               isLastActiveDisplay={lastActiveDisplayId === display.id && !display.isBlackedOut}
               onToggle={(id) => void toggleDisplay(id)}
             />
@@ -74,6 +83,11 @@ function App() {
       </main>
 
       <footer className="footer">
+        <div className="terminal-panel" aria-live="polite">
+          <span className="terminal-prompt">$</span>
+          <span className={statusClassName}>{statusMessage ?? "System idle. Waiting for display action."}</span>
+        </div>
+
         <button
           type="button"
           className="wake-btn"
