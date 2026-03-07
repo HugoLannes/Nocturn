@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod commands;
 mod cursor;
 mod overlay;
@@ -21,7 +23,6 @@ fn main() {
 
     tauri::Builder::default()
         .manage(shared_state)
-        .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::get_displays,

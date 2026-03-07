@@ -11,11 +11,11 @@ use log::{error, info};
 use tauri::AppHandle;
 use windows_sys::Win32::{
     Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM},
-    Graphics::Gdi::{BLACK_BRUSH, GetStockObject, HBRUSH},
+    Graphics::Gdi::{GetStockObject, BLACK_BRUSH, HBRUSH},
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DestroyWindow, HTCLIENT, HWND_TOPMOST, IsWindow,
-        RegisterClassW, SW_SHOWNA, SWP_NOACTIVATE, SWP_SHOWWINDOW, SetWindowPos, ShowWindow,
+        CreateWindowExW, DefWindowProcW, DestroyWindow, IsWindow, RegisterClassW, SetWindowPos,
+        ShowWindow, HTCLIENT, HWND_TOPMOST, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_SHOWNA,
         WM_NCHITTEST, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
     },
 };

@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Build Windows Release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify tag matches app version
+        shell: bash
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+
+          const tag = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+          const packageJsonVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
+          const tauriConfigVersion = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')).version;
+          const cargoToml = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+          const cargoVersionMatch = cargoToml.match(/^version\s*=\s*"([^"]+)"/m);
+
+          if (!cargoVersionMatch) {
+            console.error('Unable to read version from src-tauri/Cargo.toml.');
+            process.exit(1);
+          }
+
+          const versions = {
+            tag,
+            packageJson: packageJsonVersion,
+            tauriConfig: tauriConfigVersion,
+            cargoToml: cargoVersionMatch[1],
+          };
+
+          if (new Set(Object.values(versions)).size !== 1) {
+            console.error('Version mismatch detected:', versions);
+            process.exit(1);
+          }
+
+          console.log(`Release version ${tag} verified.`);
+          EOF
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Nocturn ${{ github.ref_name }}
+          releaseBody: |
+            See the assets attached to this release to install Nocturn.
+          releaseDraft: true
+          prerelease: false
