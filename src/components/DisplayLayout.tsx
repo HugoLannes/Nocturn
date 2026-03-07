@@ -2,6 +2,7 @@ import type { Display } from "../types";
 
 type DisplayLayoutProps = {
   displays: Display[];
+  headline: string;
   isMutating: boolean;
   pendingDisplayId: string | null;
   lastActiveDisplayId: string | null;
@@ -20,12 +21,59 @@ function shortLabel(display: Display, index: number): string {
   return String(index + 1);
 }
 
+function displayEyebrow(display: Display, index: number): string {
+  return `Display ${shortLabel(display, index)}`;
+}
+
+function displayStateLabel(display: Display, isPending: boolean): string {
+  if (isPending) return "Applying";
+  if (display.isBlackedOut) return "Blacked out";
+  if (!display.canBlackout) return "Protected";
+  return "Active";
+}
+
+function displayTitle(display: Display): string {
+  if (display.isPrimary) return "Primary workspace";
+  if (display.hostsPanel) return "Nocturn panel";
+  return cleanName(display.name);
+}
+
+function displaySummary(display: Display, isLastActive: boolean, isPending: boolean): string {
+  if (isPending) return "Syncing display";
+  if (display.isBlackedOut) return "Screen hidden";
+  if (isLastActive) return "Last visible display";
+  if (!display.canBlackout) return "Reserved by Nocturn";
+  if (display.isPrimary) return "Main workspace";
+  if (display.hostsPanel) return "Hosts the app";
+  return "Ready to black out";
+}
+
+function displayActionLabel(display: Display, isLastActive: boolean, isPending: boolean): string {
+  if (isPending) return "Applying...";
+  if (display.isBlackedOut) return "Restore";
+  if (isLastActive) return "Locked";
+  if (!display.canBlackout) return "Unavailable";
+  return "Black out";
+}
+
+function displayMeta(display: Display): string {
+  return `${display.width}x${display.height}`;
+}
+
+function displayRoleTags(display: Display): string[] {
+  return [
+    display.isPrimary ? "Primary" : null,
+    display.hostsPanel ? "Panel" : null,
+  ].filter((tag): tag is string => Boolean(tag));
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
 export function DisplayLayout({
   displays,
+  headline,
   isMutating,
   pendingDisplayId,
   lastActiveDisplayId,
@@ -42,9 +90,33 @@ export function DisplayLayout({
   const totalWidth = Math.max(maxX - minX, 1);
   const totalHeight = Math.max(maxY - minY, 1);
   const mapAspectRatio = clamp(totalWidth / totalHeight, 1.1, 2.2);
+  const activeCount = displays.filter((display) => !display.isBlackedOut).length;
+  const blackedOutCount = displays.length - activeCount;
 
   return (
     <section className="layout-panel" aria-label="Display arrangement">
+      <header className="layout-header">
+        <div className="layout-header-copy">
+          <span className="layout-eyebrow">Display control</span>
+          <h1 className="layout-title">{headline}</h1>
+        </div>
+
+        <div className="layout-summary" aria-label="Display summary">
+          <div className="layout-summary-card">
+            <span className="layout-summary-value">{displays.length}</span>
+            <span className="layout-summary-label">Detected</span>
+          </div>
+          <div className="layout-summary-card">
+            <span className="layout-summary-value">{activeCount}</span>
+            <span className="layout-summary-label">Active</span>
+          </div>
+          <div className="layout-summary-card">
+            <span className="layout-summary-value">{blackedOutCount}</span>
+            <span className="layout-summary-label">Blacked out</span>
+          </div>
+        </div>
+      </header>
+
       <div className="display-layout-frame" style={{ aspectRatio: String(mapAspectRatio) }}>
         <div className="display-layout-grid" aria-hidden="true" />
 
@@ -52,41 +124,49 @@ export function DisplayLayout({
           {displays.map((display, index) => {
             const isLastActive = lastActiveDisplayId === display.id && !display.isBlackedOut;
             const isDisabled = isMutating || isLastActive || !display.canBlackout;
+            const isPending = pendingDisplayId === display.id;
             const left = ((display.x - minX) / totalWidth) * 100;
             const top = ((display.y - minY) / totalHeight) * 100;
             const width = (display.width / totalWidth) * 100;
             const height = (display.height / totalHeight) * 100;
+            const isCompact = width < 30 || height < 42;
+            const isTiny = width < 21 || height < 28;
+            const stateLabel = displayStateLabel(display, isPending);
+            const actionLabel = displayActionLabel(display, isLastActive, isPending);
+            const roleTags = displayRoleTags(display);
 
             return (
               <button
                 key={display.id}
                 type="button"
-                className={`layout-display ${display.isBlackedOut ? "layout-display-off" : "layout-display-on"} ${pendingDisplayId === display.id ? "layout-display-pending" : ""} ${display.hostsPanel ? "layout-display-panel" : ""}`}
+                className={`layout-display ${display.isBlackedOut ? "layout-display-off" : "layout-display-on"} ${isPending ? "layout-display-pending" : ""} ${display.hostsPanel ? "layout-display-panel" : ""} ${isCompact ? "layout-display-compact" : ""} ${isTiny ? "layout-display-tiny" : ""}`}
                 style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
                 onClick={() => onToggle(display.id)}
                 disabled={isDisabled}
-                aria-label={`Toggle ${cleanName(display.name)} at ${display.width}x${display.height}`}
-                aria-busy={pendingDisplayId === display.id}
+                aria-label={`${actionLabel} ${cleanName(display.name)} at ${display.width}x${display.height}`}
+                aria-busy={isPending}
+                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}`}
               >
                 <span className="layout-display-topline">
-                  <span className="layout-display-index">{shortLabel(display, index)}</span>
+                  <span className="layout-display-eyebrow">{displayEyebrow(display, index)}</span>
                   <span className="layout-display-state-pill">
                     <span className="layout-display-state-dot" aria-hidden="true" />
-                    <span className="layout-display-state">{pendingDisplayId === display.id ? "Sync" : display.isBlackedOut ? "Off" : "On"}</span>
+                    <span className="layout-display-state">{stateLabel}</span>
                   </span>
                 </span>
                 <span className="layout-display-body">
-                  <span className="layout-display-name">{cleanName(display.name)}</span>
-                  <span className="layout-display-meta">
-                    {display.width}x{display.height}
-                  </span>
+                  <span className="layout-display-name">{displayTitle(display)}</span>
+                  <span className="layout-display-summary">{displaySummary(display, isLastActive, isPending)}</span>
                 </span>
                 <span className="layout-display-bottomline">
-                  <span className="layout-display-coords">
-                    {display.x}, {display.y}
-                  </span>
+                  <span className="layout-display-meta">{displayMeta(display)}</span>
                   <span className="layout-display-tags">
-                    {display.isPrimary && <span className="layout-display-badge">Primary</span>}
+                    {!isTiny && roleTags.map((tag) => (
+                      <span key={tag} className="layout-display-badge">
+                        {tag}
+                      </span>
+                    ))}
+                    <span className="layout-display-action">{actionLabel}</span>
                   </span>
                 </span>
               </button>

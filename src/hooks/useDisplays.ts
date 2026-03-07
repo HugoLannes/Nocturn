@@ -6,8 +6,6 @@ import type { Display, DisplayUpdatePayload } from "../types";
 type UseDisplaysState = {
   displays: Display[];
   isLoading: boolean;
-  error: string | null;
-  feedback: string | null;
   activeDisplayCount: number;
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
@@ -16,8 +14,6 @@ type UseDisplaysState = {
 const INITIAL_STATE: UseDisplaysState = {
   displays: [],
   isLoading: true,
-  error: null,
-  feedback: null,
   activeDisplayCount: 0,
   blackoutCount: 0,
   allowCursorExitActiveDisplays: true,
@@ -49,7 +45,7 @@ export function useDisplays() {
   const [isMutating, setIsMutating] = useState(false);
   const [pendingDisplayId, setPendingDisplayId] = useState<string | null>(null);
 
-  const loadDisplays = useCallback(async (preserveError = false) => {
+  const loadDisplays = useCallback(async () => {
     try {
       const payload = await withTimeout(invoke<DisplayUpdatePayload>("get_displays"), "Loading displays");
       setState((current) => ({
@@ -58,13 +54,12 @@ export function useDisplays() {
         activeDisplayCount: payload.activeDisplayCount,
         blackoutCount: payload.blackoutCount,
         allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
-        error: preserveError ? current.error : null,
         isLoading: false,
       }));
     } catch (error) {
+      console.error("Failed to load displays:", error);
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : String(error),
         isLoading: false,
       }));
     }
@@ -82,7 +77,6 @@ export function useDisplays() {
         activeDisplayCount: event.payload.activeDisplayCount,
         blackoutCount: event.payload.blackoutCount,
         allowCursorExitActiveDisplays: event.payload.allowCursorExitActiveDisplays,
-        error: null,
         isLoading: false,
       }));
     }).then((cleanup) => {
@@ -97,19 +91,12 @@ export function useDisplays() {
   const toggleDisplay = useCallback(async (displayId: string) => {
     setIsMutating(true);
     setPendingDisplayId(displayId);
-    setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
-      const feedback = await withTimeout(invoke<string>("toggle_display", { id: displayId }), "Toggling display");
-      if (feedback) {
-        setState((current) => ({ ...current, feedback }));
-      }
+      await withTimeout(invoke<string>("toggle_display", { id: displayId }), "Toggling display");
     } catch (error) {
-      setState((current) => ({
-        ...current,
-        error: error instanceof Error ? error.message : String(error),
-      }));
-      void loadDisplays(true);
+      console.error(`Failed to toggle display ${displayId}:`, error);
+      void loadDisplays();
     } finally {
       setIsMutating(false);
       setPendingDisplayId(null);
@@ -119,20 +106,12 @@ export function useDisplays() {
   const wakeAll = useCallback(async () => {
     setIsMutating(true);
     setPendingDisplayId(null);
-    setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
       await withTimeout(invoke("unblank_all"), "Waking displays");
-      setState((current) => ({
-        ...current,
-        feedback: "All displays are active again.",
-      }));
     } catch (error) {
-      setState((current) => ({
-        ...current,
-        error: error instanceof Error ? error.message : String(error),
-      }));
-      void loadDisplays(true);
+      console.error("Failed to wake displays:", error);
+      void loadDisplays();
     } finally {
       setIsMutating(false);
     }
@@ -140,7 +119,6 @@ export function useDisplays() {
 
   const setAllowCursorExitActiveDisplays = useCallback(async (allowed: boolean) => {
     setIsMutating(true);
-    setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
       const payload = await withTimeout(
@@ -154,16 +132,10 @@ export function useDisplays() {
         activeDisplayCount: payload.activeDisplayCount,
         blackoutCount: payload.blackoutCount,
         allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
-        feedback: allowed
-          ? "Mouse can now leave the active display area."
-          : "Mouse is now confined to the active display area.",
       }));
     } catch (error) {
-      setState((current) => ({
-        ...current,
-        error: error instanceof Error ? error.message : String(error),
-      }));
-      void loadDisplays(true);
+      console.error("Failed to update cursor setting:", error);
+      void loadDisplays();
     } finally {
       setIsMutating(false);
     }

@@ -8,13 +8,22 @@ import { useDisplays } from "./hooks/useDisplays";
 
 type AppView = "displays" | "settings";
 
+const DISPLAY_HEADLINES = [
+  "Ready to go dark.",
+  "Let's lay back.",
+  "Give your eyes a break.",
+  "Dim the extra glow.",
+  "Time to wind down.",
+  "Quiet the bright screens.",
+  "Less glow, more calm.",
+  "Night mode, softly.",
+];
+
 function App() {
   const appVersion = `v${packageInfo.version}`;
   const {
     displays,
     isLoading,
-    error,
-    feedback,
     isMutating,
     pendingDisplayId,
     blackoutCount,
@@ -28,6 +37,9 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashExiting, setIsSplashExiting] = useState(false);
   const [hasMetMinimumSplash, setHasMetMinimumSplash] = useState(false);
+  const [displayHeadline] = useState(
+    () => DISPLAY_HEADLINES[Math.floor(Math.random() * DISPLAY_HEADLINES.length)],
+  );
 
   useEffect(() => {
     const minimumSplashTimer = window.setTimeout(() => {
@@ -52,17 +64,6 @@ function App() {
       window.clearTimeout(removeTimer);
     };
   }, [hasMetMinimumSplash, isLoading]);
-
-  const statusMessage = isLoading
-    ? "Scanning displays..."
-    : error
-      ? error
-      : feedback;
-  const statusClassName = error
-    ? "terminal-line state-error"
-    : feedback
-      ? "terminal-line state-feedback"
-      : "terminal-line";
 
   return (
     <div className="app">
@@ -143,6 +144,7 @@ function App() {
         ) : (
           <DisplayLayout
             displays={displays}
+            headline={displayHeadline}
             isMutating={isMutating}
             pendingDisplayId={pendingDisplayId}
             lastActiveDisplayId={lastActiveDisplayId}
@@ -151,19 +153,8 @@ function App() {
         )}
       </main>
 
-      <footer className="footer">
-        <div className="terminal-panel" aria-live="polite">
-          <span className="terminal-prompt">$</span>
-          <span className={statusClassName}>
-            {activeView === "settings"
-              ? allowCursorExitActiveDisplays
-                ? "The cursor can leave the active display area."
-                : "The cursor is confined to the active display area."
-              : statusMessage ?? "System idle. Waiting for display action."}
-          </span>
-        </div>
-
-        {activeView !== "settings" && (
+      {activeView !== "settings" && (
+        <div className="bottom-actions">
           <button
             type="button"
             className="wake-btn"
@@ -172,8 +163,8 @@ function App() {
           >
             Wake all displays
           </button>
-        )}
-      </footer>
+        </div>
+      )}
     </div>
   );
 }
