@@ -46,6 +46,7 @@ The project is currently in the documentation and design phase.
 
 - `docs/product-requirements.md`
 - `docs/design-vision.md`
+- `docs/display-safety-technical-spec.md`
 
 ## Immediate Roadmap
 
