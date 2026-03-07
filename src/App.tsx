@@ -5,6 +5,7 @@ import { DisplayLayout } from "./components/DisplayLayout";
 import { useDisplays } from "./hooks/useDisplays";
 
 function App() {
+  const appVersion = "v0.0.0";
   const {
     displays,
     isLoading,
@@ -74,13 +75,9 @@ function App() {
         <div className="titlebar-brand">
           <img src={crescentLogo} alt="Nocturn logo" className="titlebar-logo" />
           <span className="titlebar-name">Nocturn</span>
-          <span className={`titlebar-status ${blackoutCount > 0 ? "status-alert" : "status-ok"}`}>
+          <span className="titlebar-status status-ok">
             <span className="status-dot" />
-            <span className="status-text">
-              {blackoutCount > 0
-                ? `${blackoutCount} blacked out`
-                : "Ready"}
-            </span>
+            <span className="status-text">{appVersion}</span>
           </span>
         </div>
 
