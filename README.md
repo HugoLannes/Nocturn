@@ -20,14 +20,14 @@ Nocturn is a Windows tray app that blacks out one or more displays with fullscre
 
 - `src/` contains the React panel UI and the display state hook
 - `src-tauri/src/commands.rs` is the main orchestration layer for display actions
-- `src-tauri/src/overlay.rs` creates per-display overlay windows
+- `src-tauri/src/overlay.rs` creates per-display native blackout windows
 - `src-tauri/src/panel.rs` handles panel positioning and relocation
 - `src-tauri/src/shortcut.rs` registers the wake shortcut when at least one display is blacked out
 
 ## Important Implementation Notes
 
-- overlays are separate Tauri webview windows that load `public/overlay.html`
-- overlay creation is scheduled asynchronously so the panel command flow stays responsive
+- overlays are separate native Win32 popup windows created from Rust
+- overlay creation is scheduled asynchronously onto Tauri's main thread so the panel command flow stays responsive
 - the backend is the source of truth for blackout state and safety rules
 - the frontend waits for backend confirmation and refreshes from `displays-update` events
 - cursor confinement is currently disabled

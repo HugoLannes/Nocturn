@@ -114,7 +114,7 @@ The current prototype does not require:
 
 - Windows only
 - one main panel window
-- blackout overlays are separate Tauri webview windows
+- blackout overlays are separate native Windows popup windows
 - display topology is cached after initial load rather than fully re-read on every command
 
 ---
