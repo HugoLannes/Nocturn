@@ -7,48 +7,48 @@
 ![React](https://img.shields.io/badge/React-frontend-61DAFB?style=for-the-badge&logo=react&logoColor=000000)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-styling-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=ffffff)
 
-Nocturn est une application desktop Windows pensee pour couper visuellement un ou plusieurs ecrans en un clic, sans desactiver le signal video.
+Nocturn is a Windows desktop app designed to visually black out one or more displays in a single click, without disabling the video signal.
 
-L'objectif est simple : reduire la lumiere parasite la nuit, garder un setup multi-ecrans propre, et retrouver tous les ecrans instantanement quand il faut.
+The goal is simple: reduce unwanted light at night, keep a multi-display setup stable, and bring every screen back instantly when needed.
 
 ## Concept
 
-Nocturn vit dans le `system tray` et permet de :
+Nocturn lives in the `system tray` and lets you:
 
-- voir les ecrans connectes
-- activer un blackout plein ecran sur un display
-- confiner le curseur aux ecrans actifs
-- tout rallumer rapidement avec un double appui sur `Espace`
+- view connected displays
+- enable a fullscreen blackout overlay on a display
+- confine the cursor to active screens
+- wake everything back up with a quick double-tap on `Space`
 
 ## Stack
 
-- `Tauri` pour le runtime desktop
-- `Rust` pour la logique systeme et le controle natif Windows
-- `React` pour l'interface
-- `Tailwind CSS` pour le styling
+- `Tauri` for the desktop runtime
+- `Rust` for system-level logic and native Windows control
+- `React` for the interface
+- `Tailwind CSS` for styling
 
-## Direction produit
+## Product Direction
 
-- interface sombre, moderne et elegante
-- gradients subtils et surfaces profondes
-- panel compact type tray utility
-- hierarchie visuelle claire et micro-interactions discretes
+- dark, modern, elegant interface
+- subtle gradients and deep surfaces
+- compact tray utility panel
+- clear visual hierarchy and restrained micro-interactions
 
-## Etat actuel
+## Current Status
 
-Le projet est pour l'instant en phase de documentation et de design.
+The project is currently in the documentation and design phase.
 
-- PRD en cours
-- vision design posee
-- build a venir
+- product requirements drafted
+- design vision defined
+- build coming next
 
 ## Documentation
 
-- `docs/# Nocturn - Product Requirements Documen.md`
-- `docs/Nocturn - Design Vision.md`
+- `docs/product-requirements.md`
+- `docs/design-vision.md`
 
-## Roadmap immediate
+## Immediate Roadmap
 
-- finaliser la direction UX/UI
-- cadrer les composants du tray panel
-- lancer ensuite le build de la premiere version MVP
+- finalize the UX/UI direction
+- define the tray panel components
+- start building the first MVP afterward
