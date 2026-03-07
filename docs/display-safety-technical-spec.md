@@ -1,303 +1,240 @@
 # Nocturn - Display Safety Technical Spec
 
-**Version:** v0.1  
-**Status:** Draft  
-**Scope:** MVP behavior for panel placement and blackout safety rules
+**Version:** v0.2  
+**Status:** Implemented reference  
+**Scope:** Current desktop behavior for panel safety, blackout overlays, and state flow
 
 ---
 
-## 1. Problem Statement
+## 1. Purpose
 
-Nocturn must prevent the control panel from becoming inaccessible when a display is blacked out.
+Nocturn must let the user black out displays without losing access to the control panel or leaving the app in an unusable state.
 
-Two product constraints must be enforced together:
+The current system enforces two core invariants:
 
-1. The app window must never remain on a display that is being blacked out.
-2. The user must never be allowed to black out all displays. At least one display must remain active at all times.
-
-This means the product should follow an **`n-1` rule**:
-
-- if `n` displays are connected, at most `n-1` displays can be blacked out
-- one display must always remain active
-- if the panel currently sits on the display being turned off, it must move to another active display before blackout is finalized
+1. at least one display must remain active
+2. the panel must not stay on a display that is about to be blacked out
 
 ---
 
-## 2. Goals
+## 2. Current Product Rules
 
-- keep the control panel reachable at all times
-- avoid trapping the UI behind a blackout overlay
-- simplify cursor confinement logic by guaranteeing at least one valid destination
-- preserve a predictable UX when toggling displays quickly
+### 2.1 `n-1` Safety Rule
 
-## 3. Non-Goals
+If `n` displays are connected, at most `n-1` can be blacked out.
 
-- supporting full blackout of every connected display in the MVP
-- solving advanced multi-window scenarios beyond the main tray panel
-- persisting per-display panel placement preferences
+- `1` display -> blackout is refused
+- `2` displays -> at most `1` can be blacked out
+- `3` displays -> at most `2` can be blacked out
 
----
+The backend is the source of truth for this rule.
 
-## 4. Product Rules
+### 2.2 Panel Reachability Rule
 
-### 4.1 Core Rule: `n-1` Maximum Blackout
+If the visible panel is on the targeted display, the panel is moved to another active display before the blackout is applied.
 
-The system must reject any action that would result in all connected displays becoming blacked out.
+### 2.3 Wake Rule
 
-Examples:
+All blacked-out displays can be restored by:
 
-- `1` connected display -> `0` displays may be blacked out
-- `2` connected displays -> at most `1` display may be blacked out
-- `3` connected displays -> at most `2` displays may be blacked out
+- clicking `Wake all displays` in the panel
+- double-pressing `Space` while at least one display is blacked out
 
-### 4.2 Panel Reachability Rule
+### 2.4 Cursor Behavior
 
-Before a blackout is applied to a display, Nocturn must verify whether the main control panel is currently visible on that display.
+Cursor confinement is currently disabled.
 
-If yes:
-
-- select another active display
-- move the panel to that display
-- only then create or reveal the blackout overlay on the original display
-
-### 4.3 Last Active Display Rule
-
-If the targeted display is the last currently active display, the blackout action must not run.
-
-Expected UX:
-
-- the toggle is prevented
-- the UI stays responsive
-- the user receives a short explanation such as `At least one display must stay active`
+Earlier confinement logic caused the cursor to feel trapped and is not part of the current behavior.
 
 ---
 
-## 5. Proposed UX Behavior
+## 3. Runtime Architecture
 
-### 5.1 When Toggling a Non-Panel Display Off
+### 3.1 Frontend
 
-If the user blacks out a display that does not contain the panel:
+- `src/App.tsx` renders the panel UI
+- `src/components/DisplayCard.tsx` renders each display action card
+- `src/hooks/useDisplays.ts` loads display state, invokes commands, and listens to `displays-update`
 
-- validate the `n-1` rule
-- create the overlay
-- update application state
-- keep the panel where it is
+### 3.2 Backend
 
-### 5.2 When Toggling the Panel Display Off
-
-If the user blacks out the display that currently contains the visible panel:
-
-- validate that another active display exists
-- pick a fallback display
-- move the panel to the fallback display
-- wait until the panel move is complete
-- apply the blackout overlay
-- update state
-
-The move should feel immediate and intentional, not like a flicker.
-
-### 5.3 When the User Tries to Black Out the Last Active Display
-
-If the action would leave zero active displays:
-
-- do not move the panel
-- do not create the overlay
-- keep the display active
-- show a lightweight error or disabled-state message
+- `src-tauri/src/commands.rs` orchestrates reads, toggles, wake-all, and frontend events
+- `src-tauri/src/overlay.rs` owns overlay window creation and destruction
+- `src-tauri/src/panel.rs` handles panel relocation and display ID helpers
+- `src-tauri/src/shortcut.rs` registers and unregisters the `Space` shortcut
+- `src-tauri/src/state.rs` stores display state, blackout flags, and command coordination flags
 
 ---
 
-## 6. Technical Approach
+## 4. State Model
 
-### 6.1 High-Level Flow
+The backend keeps an in-memory map of displays.
 
-```text
-User toggles display off
--> load current display state
--> compute active display count
--> if action violates n-1 rule: reject
--> if panel is on target display: relocate panel
--> create blackout overlay
--> update shared state
--> refresh frontend
-```
-
-### 6.2 Suggested State Model
-
-Backend state should track at least:
-
-- connected displays
-- blackout state per display
-- active overlays per display
-- current panel display ID when panel is visible
-- optional last-known panel bounds
-
-Example shape:
+Current display state shape:
 
 ```text
 DisplayState {
   id: String,
-  bounds: Rect,
+  name: String,
+  width: u32,
+  height: u32,
+  x: i32,
+  y: i32,
+  scale_factor: f64,
   is_primary: bool,
   is_blacked_out: bool,
 }
-
-AppState {
-  displays: Vec<DisplayState>,
-  panel_display_id: Option<String>,
-  panel_visible: bool,
-}
 ```
 
-### 6.3 Recommended Command Sequence
+Shared application state also tracks:
 
-For `toggle_display(target_id)`:
+- whether the global wake shortcut is registered
+- whether a toggle command is already in progress
+- timing state for double-space detection
 
-1. Read current display state.
-2. If target is currently active, compute whether blacking it out would violate the `n-1` rule.
-3. If invalid, return an explicit domain error such as `CannotBlackoutLastActiveDisplay`.
-4. If the panel is visible and currently hosted on `target_id`, relocate it first.
-5. Create the overlay window for `target_id`.
-6. Mark the display as blacked out.
-7. Emit a frontend update event.
+The frontend receives a simplified payload with:
 
-For `toggle_display(target_id)` when restoring:
-
-1. Destroy or hide the overlay for `target_id`.
-2. Mark the display as active.
-3. Emit a frontend update event.
+- display list
+- `activeDisplayCount`
+- `blackoutCount`
+- per-display flags such as `hostsPanel`, `isBlackedOut`, and `canBlackout`
 
 ---
 
-## 7. Panel Relocation Strategy
+## 5. Overlay System
 
-### 7.1 Fallback Display Selection
+### 5.1 Overlay Representation
 
-When the panel must move, choose a fallback display using a deterministic order:
+Each blacked-out display is represented by a dedicated Tauri webview window.
 
-1. another non-blacked-out display nearest to the current panel display
-2. otherwise the primary active display
-3. otherwise the first active display in the current display list
+- label format: `overlay-<sanitized-display-id>`
+- document: `public/overlay.html`
+- background: black
+- decorations: disabled
+- always-on-top: enabled
+- skip taskbar: enabled
 
-This keeps behavior predictable and reduces surprising jumps.
+### 5.2 Why Overlay Creation Is Asynchronous
 
-### 7.2 Relocation Timing
+Overlay creation is not executed inline inside the toggle command anymore.
 
-The relocation must happen **before** blackout is made visible on the target display.
+Current behavior:
 
-Preferred sequence:
+1. `toggle_display` requests overlay creation
+2. `show_overlay` spawns a worker thread
+3. the worker schedules window creation on the Tauri main thread
+4. the command returns without waiting for the window builder to finish
 
-1. compute fallback display
-2. reposition panel window inside fallback bounds
-3. confirm panel window target update
-4. apply blackout overlay to the original display
+This avoids the command flow hanging while Windows or the webview runtime is creating the new overlay window.
 
-### 7.3 Placement on the Fallback Display
+### 5.3 Overlay Input Behavior
 
-The panel should preserve its anchoring behavior relative to the tray as much as possible, but MVP safety is more important than pixel-perfect continuity.
-
-MVP fallback behavior:
-
-- place the panel near the bottom-right corner of the fallback display
-- clamp the window inside visible bounds
-- avoid placing it under the taskbar if that can be detected
+Overlay windows ignore cursor events via `set_ignore_cursor_events(true)` so they do not capture mouse input intended for the active display workflow.
 
 ---
 
-## 8. Failure Handling
+## 6. Current Command Flows
 
-### 8.1 No Fallback Display Available
+### 6.1 `get_displays`
 
-This should only happen if the `n-1` rule is broken or the display state is stale.
+Current flow:
 
-Fallback behavior:
+1. ensure the cached display list exists
+2. if empty, read monitors from Tauri once
+3. compute whether the panel currently sits on one of the cached displays using panel window position
+4. build payload
+5. return payload to the frontend
 
-- abort the blackout action
-- keep the target display active
-- log the failure
-- surface a safe user-facing message if possible
+Important detail: the app no longer refreshes monitor information on every read.
 
-### 8.2 Relocation Fails
+### 6.2 `toggle_display(target_id)`
 
-If panel relocation fails for any reason:
+When blacking out a display:
 
-- abort the blackout action
-- do not create the overlay
-- keep UI access on the current display
+1. acquire the toggle guard so only one toggle runs at a time
+2. read target display from cached state
+3. reject if this would black out the last active display
+4. if the panel is on the target display, choose a fallback display and move the panel first
+5. schedule overlay creation for the target display
+6. mark the display as blacked out in backend state
+7. sync runtime behaviors such as the wake shortcut
+8. emit `displays-update`
 
-This is safer than blacking out the display and risking an inaccessible panel.
+When restoring a display:
 
-### 8.3 Display Topology Changes Mid-Action
+1. destroy the overlay window for the target display
+2. mark the display as active
+3. sync runtime behaviors
+4. emit `displays-update`
 
-If a display is unplugged or the topology changes during relocation:
+### 6.3 `unblank_all`
 
-- re-read the display list
-- recompute active displays
-- if a valid fallback still exists, retry once
-- otherwise abort the action safely
+Current flow:
 
----
-
-## 9. Edge Cases
-
-| Case | Expected behavior |
-|---|---|
-| Single-display setup | Blackout action is unavailable because it would violate the `n-1` rule. |
-| Two-display setup, panel on display A, user blacks out A | Panel moves to display B, then display A is blacked out. |
-| Two-display setup, display B already blacked out, user tries to black out A | Action is rejected because A is the last active display. |
-| Panel hidden in tray | No relocation is needed; only the `n-1` rule applies. |
-| Rapid repeated toggles | Commands should serialize or ignore conflicting requests while relocation / overlay creation is in progress. |
-| Display unplugged after relocation target is chosen | Recompute fallback or abort safely. |
-
----
-
-## 10. Suggested Backend Responsibilities
-
-- `commands.rs`
-  - validate toggle requests
-  - return explicit domain errors
-  - orchestrate relocation + overlay sequencing
-
-- `overlay.rs`
-  - create and destroy blackout overlays
-  - expose whether a display currently has an overlay
-
-- `main.rs`
-  - own shared application state
-  - track panel window visibility and current display
-
-- possible future `panel.rs`
-  - encapsulate panel positioning, relocation, and clamping logic
+1. collect all blacked-out display IDs
+2. destroy each overlay window
+3. clear blackout flags in backend state
+4. sync runtime behaviors
+5. emit `displays-update`
 
 ---
 
-## 11. Suggested Frontend Responsibilities
+## 7. Panel Tracking and Relocation
 
-- disable or visually guard the last remaining active display from being turned off
-- present a short explanatory message when a blackout is rejected
-- refresh card states immediately after backend events
-- avoid optimistic UI that assumes blackout succeeded before backend confirmation
+### 7.1 How the Current Panel Display Is Determined
+
+The system does not ask Tauri for the current monitor on every update.
+
+Instead, it:
+
+1. reads the panel window outer position
+2. computes the panel center point
+3. matches that point against cached display bounds
+
+This avoids extra monitor queries during hot paths.
+
+### 7.2 Fallback Selection
+
+When the panel must move away from the target display, Nocturn picks the nearest active display based on center-point distance.
+
+### 7.3 Current Placement Strategy
+
+The panel is moved to the center of the fallback display using the current fixed panel size constants.
 
 ---
 
-## 12. Open Decisions
+## 8. Frontend Behavior
 
-- whether the last active display should appear fully disabled or still clickable with an explanatory tooltip
-- whether relocation should animate or remain instant in MVP
-- whether panel display tracking should rely on Tauri window position only or also maintain explicit backend state
-- whether toggle requests should be mutex-protected during relocation
+The frontend is intentionally conservative.
+
+- it treats the backend as the source of truth
+- it disables actions while a mutation is in progress
+- it refreshes state again after commands complete
+- it derives the last active display from backend counts and display flags
+
+The `Wake all displays` button is enabled only when at least one display is blacked out and no mutation is in progress.
 
 ---
 
-## 13. Recommended MVP Decision
+## 9. Known Limitations
 
-For MVP, the safest and simplest implementation is:
+- overlay creation is asynchronous, so backend state may update slightly before the overlay is visibly ready
+- display topology is cached after initial load and not fully re-read on every command
+- per-display overlay lifecycle is tracked implicitly through window labels rather than a dedicated overlay registry
+- logs were temporarily expanded during debugging and can be reduced once the flow is considered stable
 
-- enforce the `n-1` rule in the backend as the source of truth
-- also reflect the rule in the frontend by disabling the invalid toggle
-- relocate the panel instantly, without animation
-- abort blackout if relocation cannot be completed
+---
 
-This gives the product a clear invariant:
+## 10. Files To Read First
 
-> Nocturn always keeps one active display, and the control panel never disappears behind a blackout.
+- `src-tauri/src/commands.rs`
+- `src-tauri/src/overlay.rs`
+- `src-tauri/src/panel.rs`
+- `src-tauri/src/shortcut.rs`
+- `src/hooks/useDisplays.ts`
+
+---
+
+## 11. Current Invariant
+
+> Nocturn keeps one display active, keeps the panel reachable, and applies blackout overlays without blocking the panel command flow.

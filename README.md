@@ -1,46 +1,44 @@
 # Nocturn
 
-![Status](https://img.shields.io/badge/status-draft-7c6aff?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-prototype-3b82f6?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows)
 ![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?style=for-the-badge&logo=tauri&logoColor=000000)
 ![Rust](https://img.shields.io/badge/Rust-backend-000000?style=for-the-badge&logo=rust)
 ![React](https://img.shields.io/badge/React-frontend-61DAFB?style=for-the-badge&logo=react&logoColor=000000)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-styling-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=ffffff)
 
-Nocturn is a Windows desktop app designed to visually black out one or more displays in a single click, without disabling the video signal.
+Nocturn is a Windows tray app that blacks out one or more displays with fullscreen black overlays without disabling the video signal.
 
-The goal is simple: reduce unwanted light at night, keep a multi-display setup stable, and bring every screen back instantly when needed.
+## What It Does Today
 
-## Concept
+- lists connected displays in a compact control panel
+- toggles a per-display blackout overlay on and off
+- keeps at least one display active at all times
+- moves the panel away before blacking out the display that currently hosts it
+- wakes every blacked-out display from the panel or with a double-tap on `Space`
 
-Nocturn lives in the `system tray` and lets you:
+## Current Architecture
 
-- view connected displays
-- enable a fullscreen blackout overlay on a display
-- confine the cursor to active screens
-- wake everything back up with a quick double-tap on `Space`
+- `src/` contains the React panel UI and the display state hook
+- `src-tauri/src/commands.rs` is the main orchestration layer for display actions
+- `src-tauri/src/overlay.rs` creates per-display overlay windows
+- `src-tauri/src/panel.rs` handles panel positioning and relocation
+- `src-tauri/src/shortcut.rs` registers the wake shortcut when at least one display is blacked out
+
+## Important Implementation Notes
+
+- overlays are separate Tauri webview windows that load `public/overlay.html`
+- overlay creation is scheduled asynchronously so the panel command flow stays responsive
+- the backend is the source of truth for blackout state and safety rules
+- the frontend waits for backend confirmation and refreshes from `displays-update` events
+- cursor confinement is currently disabled
 
 ## Stack
 
-- `Tauri` for the desktop runtime
-- `Rust` for system-level logic and native Windows control
-- `React` for the interface
-- `Tailwind CSS` for styling
-
-## Product Direction
-
-- dark, modern, elegant interface
-- subtle gradients and deep surfaces
-- compact tray utility panel
-- clear visual hierarchy and restrained micro-interactions
-
-## Current Status
-
-The project is currently in the documentation and design phase.
-
-- product requirements drafted
-- design vision defined
-- build coming next
+- `Tauri 2`
+- `Rust`
+- `React`
+- `TypeScript`
+- `Vite`
 
 ## Documentation
 
@@ -48,8 +46,7 @@ The project is currently in the documentation and design phase.
 - `docs/design-vision.md`
 - `docs/display-safety-technical-spec.md`
 
-## Immediate Roadmap
+## Dev Notes
 
-- finalize the UX/UI direction
-- define the tray panel components
-- start building the first MVP afterward
+- restart `tauri dev` after Rust changes in `src-tauri/`
+- use `cargo check` in `src-tauri/` to validate backend changes quickly

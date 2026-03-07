@@ -21,13 +21,34 @@ const INITIAL_STATE: UseDisplaysState = {
   blackoutCount: 0,
 };
 
+const COMMAND_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    void promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export function useDisplays() {
   const [state, setState] = useState<UseDisplaysState>(INITIAL_STATE);
   const [isMutating, setIsMutating] = useState(false);
 
   const loadDisplays = useCallback(async (preserveError = false) => {
     try {
-      const payload = await invoke<DisplayUpdatePayload>("get_displays");
+      const payload = await withTimeout(invoke<DisplayUpdatePayload>("get_displays"), "Loading displays");
       setState((current) => ({
         ...current,
         displays: payload.displays,
@@ -74,7 +95,7 @@ export function useDisplays() {
     setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
-      const feedback = await invoke<string>("toggle_display", { id: displayId });
+      const feedback = await withTimeout(invoke<string>("toggle_display", { id: displayId }), "Toggling display");
       if (feedback) {
         setState((current) => ({ ...current, feedback }));
       }
@@ -86,7 +107,7 @@ export function useDisplays() {
       hadError = true;
     } finally {
       setIsMutating(false);
-      await loadDisplays(hadError);
+      void loadDisplays(hadError);
     }
   }, [loadDisplays]);
 
@@ -96,7 +117,7 @@ export function useDisplays() {
     setState((current) => ({ ...current, feedback: null, error: null }));
 
     try {
-      await invoke("unblank_all");
+      await withTimeout(invoke("unblank_all"), "Waking displays");
       setState((current) => ({
         ...current,
         feedback: "All displays are active again.",
@@ -109,7 +130,7 @@ export function useDisplays() {
       hadError = true;
     } finally {
       setIsMutating(false);
-      await loadDisplays(hadError);
+      void loadDisplays(hadError);
     }
   }, [loadDisplays]);
 

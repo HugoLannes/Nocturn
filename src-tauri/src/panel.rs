@@ -5,13 +5,7 @@ use crate::state::DisplayState;
 pub const PANEL_WIDTH: i32 = 420;
 pub const PANEL_HEIGHT: i32 = 640;
 
-pub fn build_display_id(
-    name: Option<&String>,
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-) -> String {
+pub fn build_display_id(name: Option<&String>, x: i32, y: i32, width: u32, height: u32) -> String {
     let normalized_name = name.cloned().unwrap_or_else(|| "display".to_string());
     format!("{normalized_name}:{x}:{y}:{width}:{height}")
 }
@@ -19,24 +13,13 @@ pub fn build_display_id(
 pub fn display_id_from_monitor(monitor: &Monitor) -> String {
     let position = monitor.position();
     let size = monitor.size();
-    build_display_id(monitor.name(), position.x, position.y, size.width, size.height)
-}
-
-pub fn current_panel_display_id(app: &AppHandle) -> Result<Option<String>, String> {
-    let Some(panel) = app.get_webview_window("main") else {
-        return Ok(None);
-    };
-
-    let is_visible = panel.is_visible().map_err(|error| error.to_string())?;
-    if !is_visible {
-        return Ok(None);
-    }
-
-    let monitor = panel
-        .current_monitor()
-        .map_err(|error| error.to_string())?;
-
-    Ok(monitor.as_ref().map(display_id_from_monitor))
+    build_display_id(
+        monitor.name(),
+        position.x,
+        position.y,
+        size.width,
+        size.height,
+    )
 }
 
 pub fn show_panel(app: &AppHandle) -> Result<(), String> {
