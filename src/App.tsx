@@ -66,19 +66,10 @@ const windowControlClass = "grid h-[26px] w-[26px] place-items-center rounded-[6
 
 function wakeButtonClass(isActive: boolean) {
   return cn(
-    "flex min-h-[64px] w-full items-center justify-between gap-4 rounded-[16px] border px-[15px] py-[12px] text-left tracking-[0.01em] text-[var(--text-primary)] transition-[border-color,background,transform,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px enabled:hover:border-[rgba(var(--accent-rgb),0.34)] enabled:hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.16),rgba(255,255,255,0.04)_54%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(var(--accent-rgb),0.18)] disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:min-h-[58px] max-[560px]:gap-3 max-[560px]:px-3 max-[560px]:py-[11px]",
+    "flex h-10 w-full items-center justify-center rounded-[12px] border px-4 text-[var(--text-primary)] transition-[border-color,background,transform,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px enabled:hover:border-[rgba(var(--accent-rgb),0.34)] enabled:hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.16),rgba(255,255,255,0.04)_54%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(var(--accent-rgb),0.18)] disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:h-9 max-[560px]:px-3",
     isActive
       ? "border-[rgba(var(--accent-rgb),0.28)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.18),rgba(255,255,255,0.035)_54%),rgba(255,255,255,0.03)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_rgba(var(--accent-rgb),0.14)]"
       : "border-white/10 [background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)_54%),rgba(255,255,255,0.028)]",
-  );
-}
-
-function wakeBadgeClass(isActive: boolean) {
-  return cn(
-    "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-[10px] py-[5px] text-[9px] font-semibold uppercase leading-none tracking-[0.08em] max-[560px]:px-[9px] max-[560px]:text-[8px]",
-    isActive
-      ? "border-[rgba(var(--accent-rgb),0.3)] text-[var(--accent-soft)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.22),rgba(var(--accent-rgb),0.08))]"
-      : "border-white/8 bg-white/5 text-[rgba(241,245,249,0.74)]",
   );
 }
 
@@ -115,15 +106,8 @@ function App() {
     () => DISPLAY_HEADLINES[Math.floor(Math.random() * DISPLAY_HEADLINES.length)],
   );
   const hasHiddenDisplays = blackoutCount > 0;
-  const hiddenDisplaysLabel = `${blackoutCount} hidden ${blackoutCount === 1 ? "display" : "displays"}`;
   const hasPendingCards = pendingDisplayIds.size > 0;
   const isRestoreAllBusy = isMutating || hasPendingCards;
-  const restoreAllHint = isRestoreAllBusy
-    ? "Applying display changes"
-    : hasHiddenDisplays
-      ? "Wake every hidden screen"
-      : "Nothing to restore";
-  const restoreAllStatus = isRestoreAllBusy ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready";
   const isUpdateBusy = installState === "downloading" || installState === "installing" || installState === "relaunching";
   const shouldShowUpdateButton = isUpdateAvailable;
 
@@ -317,34 +301,7 @@ function App() {
             disabled={!hasHiddenDisplays || isRestoreAllBusy}
             aria-label="Restore all blacked-out displays"
           >
-            <span className="flex min-w-0 flex-1 items-center gap-3 max-[560px]:gap-[10px]">
-              <span
-                className={cn(
-                  "grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border transition-[border-color,background,color,box-shadow] duration-[140ms] ease-out max-[560px]:h-9 max-[560px]:w-9",
-                  hasHiddenDisplays
-                    ? "border-[rgba(var(--accent-rgb),0.28)] text-[var(--accent-soft)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.24),rgba(var(--accent-rgb),0.08))]"
-                    : "border-white/8 bg-white/[0.035] text-[rgba(241,245,249,0.68)]",
-                )}
-                aria-hidden="true"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="4" y="5" width="16" height="10" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M12 15v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M8.5 19h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M12 8V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M9.5 6.5 12 4l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col items-start gap-[3px]">
-                <span className="text-[14px] font-semibold leading-[1.05] tracking-[-0.03em]">Restore all displays</span>
-                <span className="text-[10px] uppercase leading-[1.2] tracking-[0.08em] text-[rgba(226,232,240,0.64)]" style={monoTextStyle}>
-                  {restoreAllHint}
-                </span>
-              </span>
-            </span>
-            <span className={wakeBadgeClass(hasHiddenDisplays)} style={monoTextStyle}>
-              {restoreAllStatus}
-            </span>
+            <span className="text-[13px] font-semibold leading-[1.05] tracking-[-0.03em]">Restore all displays</span>
           </button>
         </div>
       )}
