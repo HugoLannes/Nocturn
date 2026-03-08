@@ -9,6 +9,7 @@ type UseDisplaysState = {
   activeDisplayCount: number;
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
+  showOverlayHiddenApps: boolean;
 };
 
 const INITIAL_STATE: UseDisplaysState = {
@@ -17,6 +18,7 @@ const INITIAL_STATE: UseDisplaysState = {
   activeDisplayCount: 0,
   blackoutCount: 0,
   allowCursorExitActiveDisplays: true,
+  showOverlayHiddenApps: true,
 };
 
 const COMMAND_TIMEOUT_MS = 5000;
@@ -54,6 +56,7 @@ export function useDisplays() {
         activeDisplayCount: payload.activeDisplayCount,
         blackoutCount: payload.blackoutCount,
         allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: payload.showOverlayHiddenApps,
         isLoading: false,
       }));
     } catch (error) {
@@ -77,6 +80,7 @@ export function useDisplays() {
         activeDisplayCount: event.payload.activeDisplayCount,
         blackoutCount: event.payload.blackoutCount,
         allowCursorExitActiveDisplays: event.payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: event.payload.showOverlayHiddenApps,
         isLoading: false,
       }));
     }).then((cleanup) => {
@@ -155,6 +159,31 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
+  const setShowOverlayHiddenApps = useCallback(async (enabled: boolean) => {
+    setIsMutating(true);
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("set_show_overlay_hidden_apps", { enabled }),
+        "Updating overlay app labels",
+      );
+
+      setState((current) => ({
+        ...current,
+        displays: payload.displays,
+        activeDisplayCount: payload.activeDisplayCount,
+        blackoutCount: payload.blackoutCount,
+        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: payload.showOverlayHiddenApps,
+      }));
+    } catch (error) {
+      console.error("Failed to update overlay app labels:", error);
+      void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
   const lastActiveDisplayId = useMemo(() => {
     if (state.activeDisplayCount !== 1) {
       return null;
@@ -173,6 +202,7 @@ export function useDisplays() {
     wakeAll,
     focusPrimary,
     setAllowCursorExitActiveDisplays,
+    setShowOverlayHiddenApps,
     lastActiveDisplayId,
   };
 }

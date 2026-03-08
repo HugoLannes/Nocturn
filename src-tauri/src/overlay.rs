@@ -12,10 +12,13 @@ use tauri::AppHandle;
 use windows_sys::Win32::{
     Foundation::{GetLastError, HWND, LPARAM, LRESULT, RECT, WPARAM},
     Graphics::Gdi::{
-        BeginPaint, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, EndPaint, FillRect,
-        GetStockObject, InvalidateRect, PAINTSTRUCT, RoundRect, SelectObject, SetBkMode,
-        SetTextColor, BLACK_BRUSH, DT_END_ELLIPSIS, DT_LEFT, DT_NOPREFIX, DT_SINGLELINE,
-        DT_VCENTER, HBRUSH, PS_SOLID, TRANSPARENT,
+        BeginPaint, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, CreateFontIndirectW, CreatePen,
+        CreateSolidBrush, DEFAULT_CHARSET, DEFAULT_PITCH, DeleteObject, DrawTextW, EndPaint,
+        FF_DONTCARE, FillRect, FW_MEDIUM, FW_SEMIBOLD, GetStockObject, HDC, InvalidateRect,
+        LF_FACESIZE, LOGFONTW, NULL_PEN, OUT_DEFAULT_PRECIS, PAINTSTRUCT, RoundRect,
+        SelectObject, SetBkMode, SetTextColor, ANTIALIASED_QUALITY, BLACK_BRUSH,
+        DT_END_ELLIPSIS, DT_LEFT, DT_NOPREFIX, DT_SINGLELINE, DT_VCENTER, HBRUSH, PS_SOLID,
+        TRANSPARENT,
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
@@ -29,21 +32,40 @@ use windows_sys::Win32::{
 use crate::state::{DisplayState, HiddenAppSummary};
 
 pub const OVERLAY_CLASS_NAME: &str = "NocturnNativeOverlay";
-const MAX_OVERLAY_CARDS: usize = 5;
-const CARD_WIDTH: i32 = 336;
-const CARD_HEIGHT: i32 = 34;
-const CARD_GAP: i32 = 10;
-const CARD_MARGIN: i32 = 24;
-const CARD_RADIUS: i32 = 14;
+const MAX_OVERLAY_ROWS: usize = 4;
+const LABEL_STACK_WIDTH: i32 = 248;
+const LABEL_STACK_MARGIN: i32 = 22;
+const LABEL_STACK_GAP: i32 = 8;
+const LABEL_PILL_HEIGHT: i32 = 24;
+const LABEL_PILL_RADIUS: i32 = 12;
+const ANCHOR_LENGTH: i32 = 18;
+const ANCHOR_GAP: i32 = 8;
+
+#[derive(Clone, Copy, Default)]
+pub enum OverlayDock {
+    Top,
+    Right,
+    #[default]
+    Bottom,
+    Left,
+    Center,
+}
+
+#[derive(Clone, Default)]
+pub struct OverlayPresentation {
+    pub hidden_apps: Vec<HiddenAppSummary>,
+    pub dock: OverlayDock,
+    pub is_enabled: bool,
+}
 
 #[derive(Clone, Default)]
 struct OverlayWindowRecord {
     hwnd: isize,
-    hidden_apps: Vec<HiddenAppSummary>,
+    presentation: OverlayPresentation,
 }
 
 static OVERLAY_WINDOWS: OnceLock<Mutex<HashMap<String, OverlayWindowRecord>>> = OnceLock::new();
-static OVERLAY_CARD_CACHE: OnceLock<Mutex<HashMap<String, Vec<HiddenAppSummary>>>> = OnceLock::new();
+static OVERLAY_CARD_CACHE: OnceLock<Mutex<HashMap<String, OverlayPresentation>>> = OnceLock::new();
 static OVERLAY_CLASS_ATOM: OnceLock<u16> = OnceLock::new();
 static OVERLAY_CLASS_NAME_WIDE: OnceLock<Vec<u16>> = OnceLock::new();
 
@@ -145,18 +167,18 @@ fn overlay_windows() -> &'static Mutex<HashMap<String, OverlayWindowRecord>> {
     OVERLAY_WINDOWS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn overlay_card_cache() -> &'static Mutex<HashMap<String, Vec<HiddenAppSummary>>> {
+fn overlay_card_cache() -> &'static Mutex<HashMap<String, OverlayPresentation>> {
     OVERLAY_CARD_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 pub fn sync_overlay_cards(
     app: &AppHandle,
-    hidden_apps_by_display: HashMap<String, Vec<HiddenAppSummary>>,
+    overlay_presentations: HashMap<String, OverlayPresentation>,
 ) -> Result<(), String> {
     let app = app.clone();
     thread::spawn(move || {
         if let Err(error) = app.run_on_main_thread(move || {
-            update_overlay_cards(hidden_apps_by_display);
+            update_overlay_cards(overlay_presentations);
         }) {
             error!("sync_overlay_cards: failed to schedule card update: {}", error);
         }
@@ -200,7 +222,7 @@ fn create_or_update_overlay(display: &DisplayState) -> Result<(), String> {
             display.id.clone(),
             OverlayWindowRecord {
                 hwnd: hwnd as isize,
-                hidden_apps: overlay_card_cache()
+                presentation: overlay_card_cache()
                     .lock()
                     .expect("overlay card cache poisoned")
                     .get(&display.id)
@@ -350,60 +372,23 @@ unsafe fn paint_overlay(hwnd: HWND) {
         FillRect(hdc, &client_rect, GetStockObject(BLACK_BRUSH) as HBRUSH);
     }
 
-    let hidden_apps = hidden_apps_for_hwnd(hwnd);
-    let card_lines = overlay_card_lines(&hidden_apps);
+    let presentation = presentation_for_hwnd(hwnd);
+    if !presentation.is_enabled {
+        unsafe {
+            EndPaint(hwnd, &paint);
+        }
+        return;
+    }
+    let rows = overlay_rows(&presentation.hidden_apps);
+    let label_stack_rect =
+        overlay_label_stack_rect(&client_rect, &presentation.dock, rows.len() as i32);
 
-    if !card_lines.is_empty() {
+    if !rows.is_empty() {
         unsafe {
             SetBkMode(hdc, TRANSPARENT as i32);
         }
 
-        let card_brush = unsafe { CreateSolidBrush(rgb(19, 19, 26)) };
-        let card_pen = unsafe { CreatePen(PS_SOLID, 1, rgb(63, 63, 86)) };
-        let old_brush = unsafe { SelectObject(hdc, card_brush as _) };
-        let old_pen = unsafe { SelectObject(hdc, card_pen as _) };
-
-        for (index, line) in card_lines.iter().enumerate() {
-            let top = CARD_MARGIN + index as i32 * (CARD_HEIGHT + CARD_GAP);
-            let mut card_rect = RECT {
-                left: CARD_MARGIN,
-                top,
-                right: (CARD_MARGIN + CARD_WIDTH).min(client_rect.right - CARD_MARGIN),
-                bottom: top + CARD_HEIGHT,
-            };
-
-            unsafe {
-                RoundRect(
-                    hdc,
-                    card_rect.left,
-                    card_rect.top,
-                    card_rect.right,
-                    card_rect.bottom,
-                    CARD_RADIUS,
-                    CARD_RADIUS,
-                );
-                SetTextColor(hdc, rgb(241, 245, 249));
-            }
-
-            card_rect.left += 12;
-            card_rect.right -= 12;
-            unsafe {
-                DrawTextW(
-                    hdc,
-                    wide_null(line).as_ptr(),
-                    -1,
-                    &mut card_rect,
-                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX,
-                );
-            }
-        }
-
-        unsafe {
-            SelectObject(hdc, old_brush);
-            SelectObject(hdc, old_pen);
-            DeleteObject(card_brush as _);
-            DeleteObject(card_pen as _);
-        }
+        draw_overlay_labels(hdc, label_stack_rect, &presentation.dock, &rows);
     }
 
     unsafe {
@@ -411,52 +396,66 @@ unsafe fn paint_overlay(hwnd: HWND) {
     }
 }
 
-fn hidden_apps_for_hwnd(hwnd: HWND) -> Vec<HiddenAppSummary> {
+fn presentation_for_hwnd(hwnd: HWND) -> OverlayPresentation {
     overlay_windows()
         .lock()
         .expect("overlay registry poisoned")
         .values()
         .find(|record| record.hwnd == hwnd as isize)
-        .map(|record| record.hidden_apps.clone())
+        .map(|record| record.presentation.clone())
         .unwrap_or_default()
 }
 
-fn overlay_card_lines(hidden_apps: &[HiddenAppSummary]) -> Vec<String> {
+fn overlay_rows(hidden_apps: &[HiddenAppSummary]) -> Vec<OverlayRow> {
     if hidden_apps.is_empty() {
-        return vec!["No visible apps detected".to_string()];
+        return vec![OverlayRow {
+            label: "No visible apps detected".to_string(),
+            badge: None,
+            subdued: true,
+        }];
     }
 
-    let mut lines = hidden_apps
+    let mut rows = hidden_apps
         .iter()
-        .take(MAX_OVERLAY_CARDS)
+        .take(MAX_OVERLAY_ROWS)
         .map(|app| {
-            if app.window_count > 1 {
-                format!("{}  |  {} windows", app.app_name, app.window_count)
+            let badge = if app.window_count > 1 {
+                Some(format!("{} windows", app.window_count))
             } else {
-                app.app_name.clone()
+                None
+            };
+
+            OverlayRow {
+                label: app.app_name.clone(),
+                badge,
+                subdued: false,
             }
         })
         .collect::<Vec<_>>();
 
-    if hidden_apps.len() > MAX_OVERLAY_CARDS {
-        lines.push(format!("+{} more apps", hidden_apps.len() - MAX_OVERLAY_CARDS));
+    if hidden_apps.len() > MAX_OVERLAY_ROWS {
+        rows.push(OverlayRow {
+            label: format!("+{} more apps", hidden_apps.len() - MAX_OVERLAY_ROWS),
+            badge: None,
+            subdued: true,
+        });
     }
 
-    lines
+    rows
 }
 
-fn update_overlay_cards(hidden_apps_by_display: HashMap<String, Vec<HiddenAppSummary>>) {
+fn update_overlay_cards(overlay_presentations: HashMap<String, OverlayPresentation>) {
     {
         let mut cache = overlay_card_cache()
             .lock()
             .expect("overlay card cache poisoned");
-        *cache = hidden_apps_by_display.clone();
+        *cache = overlay_presentations.clone();
     }
 
     let mut windows = overlay_windows().lock().expect("overlay registry poisoned");
 
     for (display_id, record) in windows.iter_mut() {
-        record.hidden_apps = hidden_apps_by_display
+        record.presentation = overlay_presentations
             .get(display_id)
             .cloned()
             .unwrap_or_default();
@@ -483,4 +482,277 @@ fn last_error(context: &str) -> String {
 
 fn rgb(red: u8, green: u8, blue: u8) -> u32 {
     red as u32 | ((green as u32) << 8) | ((blue as u32) << 16)
+}
+
+#[derive(Clone)]
+struct OverlayRow {
+    label: String,
+    badge: Option<String>,
+    subdued: bool,
+}
+
+fn overlay_label_stack_rect(client_rect: &RECT, dock: &OverlayDock, row_count: i32) -> RECT {
+    let row_count = row_count.max(1);
+    let width = LABEL_STACK_WIDTH.min((client_rect.right - client_rect.left) - LABEL_STACK_MARGIN * 2);
+    let height = row_count * LABEL_PILL_HEIGHT + (row_count - 1) * LABEL_STACK_GAP;
+
+    let horizontal_center = ((client_rect.right - width) / 2).max(LABEL_STACK_MARGIN);
+    let vertical_center = ((client_rect.bottom - height) / 2).max(LABEL_STACK_MARGIN);
+
+    match dock {
+        OverlayDock::Top => rect(horizontal_center, LABEL_STACK_MARGIN, width, height),
+        OverlayDock::Bottom => rect(
+            horizontal_center,
+            client_rect.bottom - LABEL_STACK_MARGIN - height,
+            width,
+            height,
+        ),
+        OverlayDock::Left => rect(LABEL_STACK_MARGIN, vertical_center, width, height),
+        OverlayDock::Right => rect(
+            client_rect.right - LABEL_STACK_MARGIN - width,
+            vertical_center,
+            width,
+            height,
+        ),
+        OverlayDock::Center => rect(
+            horizontal_center,
+            client_rect.bottom - LABEL_STACK_MARGIN - height,
+            width,
+            height,
+        ),
+    }
+}
+
+fn draw_overlay_labels(hdc: HDC, stack_rect: RECT, dock: &OverlayDock, rows: &[OverlayRow]) {
+    unsafe {
+        let pill_brush = CreateSolidBrush(rgb(13, 15, 19));
+        let pill_border_pen = CreatePen(PS_SOLID, 1, rgb(28, 32, 39));
+        let anchor_pen = CreatePen(PS_SOLID, 1, rgb(72, 79, 91));
+        let old_pill_brush = SelectObject(hdc, pill_brush as _);
+        let old_pill_pen = SelectObject(hdc, pill_border_pen as _);
+
+        let body_font = create_overlay_font(-15, FW_MEDIUM, CLEARTYPE_QUALITY, "Segoe UI");
+        let meta_font = create_overlay_font(-11, FW_MEDIUM, ANTIALIASED_QUALITY, "Segoe UI");
+
+        let old_font = SelectObject(hdc, body_font as _);
+        draw_overlay_anchor(hdc, stack_rect, dock, anchor_pen as isize);
+
+        for (index, row) in rows.iter().enumerate() {
+            let row_top = stack_rect.top + index as i32 * (LABEL_PILL_HEIGHT + LABEL_STACK_GAP);
+            let row_rect = rect(
+                stack_rect.left,
+                row_top,
+                stack_rect.right - stack_rect.left,
+                LABEL_PILL_HEIGHT,
+            );
+
+            RoundRect(
+                hdc,
+                row_rect.left,
+                row_rect.top,
+                row_rect.right,
+                row_rect.bottom,
+                LABEL_PILL_RADIUS,
+                LABEL_PILL_RADIUS,
+            );
+
+            let dot_brush = CreateSolidBrush(if row.subdued {
+                rgb(86, 94, 106)
+            } else {
+                rgb(132, 142, 156)
+            });
+            let old_dot_brush = SelectObject(hdc, dot_brush as _);
+            let old_dot_pen = SelectObject(hdc, GetStockObject(NULL_PEN) as _);
+            RoundRect(
+                hdc,
+                row_rect.left + 10,
+                row_rect.top + 9,
+                row_rect.left + 14,
+                row_rect.top + 13,
+                6,
+                6,
+            );
+            SelectObject(hdc, old_dot_brush);
+            SelectObject(hdc, old_dot_pen);
+            DeleteObject(dot_brush as _);
+
+            SetTextColor(
+                hdc,
+                if row.subdued {
+                    rgb(123, 132, 145)
+                } else {
+                    rgb(221, 227, 236)
+                },
+            );
+            let reserved_badge_width = if row.badge.is_some() { 42 } else { 14 };
+            let mut label_rect = RECT {
+                left: row_rect.left + 22,
+                top: row_rect.top,
+                right: row_rect.right - reserved_badge_width,
+                bottom: row_rect.bottom,
+            };
+            DrawTextW(
+                hdc,
+                wide_null(&row.label).as_ptr(),
+                -1,
+                &mut label_rect,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX,
+            );
+
+            if let Some(badge) = &row.badge {
+                SelectObject(hdc, meta_font as _);
+                SetTextColor(hdc, rgb(114, 124, 137));
+                let mut badge_text_rect = RECT {
+                    left: row_rect.right - 34,
+                    top: row_rect.top,
+                    right: row_rect.right - 10,
+                    bottom: row_rect.bottom,
+                };
+                DrawTextW(
+                    hdc,
+                    wide_null(badge).as_ptr(),
+                    -1,
+                    &mut badge_text_rect,
+                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX,
+                );
+                SelectObject(hdc, body_font as _);
+            }
+        }
+
+        SelectObject(hdc, old_font);
+        SelectObject(hdc, old_pill_brush);
+        SelectObject(hdc, old_pill_pen);
+
+        DeleteObject(body_font as _);
+        DeleteObject(meta_font as _);
+        DeleteObject(pill_brush as _);
+        DeleteObject(pill_border_pen as _);
+        DeleteObject(anchor_pen as _);
+    }
+}
+
+fn create_overlay_font(height: i32, weight: u32, quality: u8, face_name: &str) -> isize {
+    let mut logfont = LOGFONTW {
+        lfHeight: height,
+        lfWeight: weight as i32,
+        lfCharSet: DEFAULT_CHARSET,
+        lfOutPrecision: OUT_DEFAULT_PRECIS,
+        lfClipPrecision: CLIP_DEFAULT_PRECIS,
+        lfQuality: quality,
+        lfPitchAndFamily: DEFAULT_PITCH | FF_DONTCARE,
+        ..Default::default()
+    };
+
+    let face_name_wide = wide_null(face_name);
+    let limit = face_name_wide.len().min(LF_FACESIZE as usize);
+    logfont.lfFaceName[..limit].copy_from_slice(&face_name_wide[..limit]);
+
+    unsafe { CreateFontIndirectW(&logfont) as isize }
+}
+
+fn rect(left: i32, top: i32, width: i32, height: i32) -> RECT {
+    RECT {
+        left,
+        top,
+        right: left + width.max(0),
+        bottom: top + height.max(0),
+    }
+}
+
+fn draw_overlay_anchor(hdc: HDC, stack_rect: RECT, dock: &OverlayDock, anchor_pen: isize) {
+    unsafe {
+        let old_pen = SelectObject(hdc, anchor_pen as _);
+        let old_brush = SelectObject(hdc, GetStockObject(NULL_PEN) as _);
+        let anchor_brush = CreateSolidBrush(rgb(126, 137, 154));
+        let old_anchor_brush = SelectObject(hdc, anchor_brush as _);
+
+        match dock {
+            OverlayDock::Top => {
+                RoundRect(
+                    hdc,
+                    stack_rect.left + 18,
+                    stack_rect.top - ANCHOR_GAP - 2,
+                    stack_rect.left + 18 + ANCHOR_LENGTH,
+                    stack_rect.top - ANCHOR_GAP,
+                    2,
+                    2,
+                );
+                RoundRect(
+                    hdc,
+                    stack_rect.left + 12,
+                    stack_rect.top - ANCHOR_GAP - 4,
+                    stack_rect.left + 18,
+                    stack_rect.top - ANCHOR_GAP + 2,
+                    6,
+                    6,
+                );
+            }
+            OverlayDock::Bottom => {
+                RoundRect(
+                    hdc,
+                    stack_rect.left + 18,
+                    stack_rect.bottom + ANCHOR_GAP,
+                    stack_rect.left + 18 + ANCHOR_LENGTH,
+                    stack_rect.bottom + ANCHOR_GAP + 2,
+                    2,
+                    2,
+                );
+                RoundRect(
+                    hdc,
+                    stack_rect.left + 12,
+                    stack_rect.bottom + ANCHOR_GAP - 2,
+                    stack_rect.left + 18,
+                    stack_rect.bottom + ANCHOR_GAP + 4,
+                    6,
+                    6,
+                );
+            }
+            OverlayDock::Left => {
+                RoundRect(
+                    hdc,
+                    stack_rect.left - ANCHOR_GAP - 2,
+                    stack_rect.top + 18,
+                    stack_rect.left - ANCHOR_GAP,
+                    stack_rect.top + 18 + ANCHOR_LENGTH,
+                    2,
+                    2,
+                );
+                RoundRect(
+                    hdc,
+                    stack_rect.left - ANCHOR_GAP - 4,
+                    stack_rect.top + 12,
+                    stack_rect.left - ANCHOR_GAP + 2,
+                    stack_rect.top + 18,
+                    6,
+                    6,
+                );
+            }
+            OverlayDock::Right => {
+                RoundRect(
+                    hdc,
+                    stack_rect.right + ANCHOR_GAP,
+                    stack_rect.top + 18,
+                    stack_rect.right + ANCHOR_GAP + 2,
+                    stack_rect.top + 18 + ANCHOR_LENGTH,
+                    2,
+                    2,
+                );
+                RoundRect(
+                    hdc,
+                    stack_rect.right + ANCHOR_GAP - 2,
+                    stack_rect.top + 12,
+                    stack_rect.right + ANCHOR_GAP + 4,
+                    stack_rect.top + 18,
+                    6,
+                    6,
+                );
+            }
+            OverlayDock::Center => {}
+        }
+
+        SelectObject(hdc, old_anchor_brush);
+        SelectObject(hdc, old_brush);
+        SelectObject(hdc, old_pen);
+        DeleteObject(anchor_brush as _);
+    }
 }

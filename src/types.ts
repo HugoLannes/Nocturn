@@ -23,4 +23,5 @@ export type DisplayUpdatePayload = {
   activeDisplayCount: number;
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
+  showOverlayHiddenApps: boolean;
 };

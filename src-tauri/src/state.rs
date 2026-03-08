@@ -47,6 +47,7 @@ pub struct DisplayUpdatePayload {
     pub active_display_count: usize,
     pub blackout_count: usize,
     pub allow_cursor_exit_active_displays: bool,
+    pub show_overlay_hidden_apps: bool,
 }
 
 pub struct NocturnState {

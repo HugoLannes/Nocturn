@@ -33,7 +33,9 @@ function App() {
     wakeAll,
     focusPrimary,
     allowCursorExitActiveDisplays,
+    showOverlayHiddenApps,
     setAllowCursorExitActiveDisplays,
+    setShowOverlayHiddenApps,
     lastActiveDisplayId,
   } = useDisplays();
   const {
@@ -198,8 +200,10 @@ function App() {
         {activeView === "settings" ? (
           <SettingsPage
             allowCursorExitActiveDisplays={allowCursorExitActiveDisplays}
+            showOverlayHiddenApps={showOverlayHiddenApps}
             isMutating={isMutating}
             onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
+            onToggleShowOverlayHiddenApps={(enabled) => void setShowOverlayHiddenApps(enabled)}
           />
         ) : (
           <DisplayLayout

@@ -7,12 +7,14 @@ use tauri::{AppHandle, Manager};
 #[serde(default, rename_all = "camelCase")]
 pub struct AppSettings {
     pub allow_cursor_exit_active_displays: bool,
+    pub show_overlay_hidden_apps: bool,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             allow_cursor_exit_active_displays: true,
+            show_overlay_hidden_apps: true,
         }
     }
 }

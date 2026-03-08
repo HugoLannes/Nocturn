@@ -72,6 +72,32 @@ pub fn set_allow_cursor_exit_active_displays(
 }
 
 #[command]
+pub fn set_show_overlay_hidden_apps(
+    app: AppHandle,
+    state: State<'_, SharedState>,
+    enabled: bool,
+) -> Result<DisplayUpdatePayload, String> {
+    let previous_settings;
+    let next_settings;
+
+    {
+        let mut state = state.lock().expect("state poisoned");
+        previous_settings = state.settings.clone();
+        state.settings.show_overlay_hidden_apps = enabled;
+        next_settings = state.settings.clone();
+    }
+
+    if let Err(error) = settings::save_settings(&app, &next_settings) {
+        let mut state = state.lock().expect("state poisoned");
+        state.settings = previous_settings;
+        return Err(error);
+    }
+
+    emit_displays_update(&app, state.inner())?;
+    build_payload(&app, state.inner())
+}
+
+#[command]
 pub fn toggle_display(
     app: AppHandle,
     state: State<'_, SharedState>,
@@ -384,11 +410,12 @@ fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), Stri
 }
 
 fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePayload, String> {
-    let (displays_map, allow_cursor_exit_active_displays) = {
+    let (displays_map, allow_cursor_exit_active_displays, show_overlay_hidden_apps) = {
         let state = state.lock().expect("state poisoned");
         (
             state.displays.clone(),
             state.settings.allow_cursor_exit_active_displays,
+            state.settings.show_overlay_hidden_apps,
         )
     };
     let active_display_count = displays_map
@@ -401,7 +428,12 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         .count();
     let panel_display_id = current_panel_display_id(app, &displays_map);
     let hidden_apps_by_display = window_inventory::snapshot_hidden_apps_by_display(&displays_map)?;
-    overlay::sync_overlay_cards(app, hidden_apps_by_display.clone())?;
+    let overlay_presentations = build_overlay_presentations(
+        &displays_map,
+        &hidden_apps_by_display,
+        show_overlay_hidden_apps,
+    );
+    overlay::sync_overlay_cards(app, overlay_presentations)?;
 
     let mut displays = displays_map
         .values()
@@ -436,7 +468,84 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         active_display_count,
         blackout_count,
         allow_cursor_exit_active_displays,
+        show_overlay_hidden_apps,
     })
+}
+
+fn build_overlay_presentations(
+    displays: &HashMap<String, DisplayState>,
+    hidden_apps_by_display: &HashMap<String, Vec<crate::state::HiddenAppSummary>>,
+    show_overlay_hidden_apps: bool,
+) -> HashMap<String, overlay::OverlayPresentation> {
+    let primary_display = displays.values().find(|display| display.is_primary).cloned();
+
+    displays
+        .values()
+        .filter(|display| display.is_blacked_out)
+        .map(|display| {
+            let reference_display = primary_display
+                .as_ref()
+                .filter(|primary| primary.id != display.id)
+                .cloned()
+                .or_else(|| nearest_active_display(displays, &display.id));
+
+            let dock = reference_display
+                .as_ref()
+                .map(|reference| overlay_dock_towards(display, reference))
+                .unwrap_or(overlay::OverlayDock::Center);
+
+            (
+                display.id.clone(),
+                overlay::OverlayPresentation {
+                    hidden_apps: hidden_apps_by_display
+                        .get(&display.id)
+                        .cloned()
+                        .unwrap_or_default(),
+                    dock,
+                    is_enabled: show_overlay_hidden_apps,
+                },
+            )
+        })
+        .collect()
+}
+
+fn nearest_active_display(
+    displays: &HashMap<String, DisplayState>,
+    source_display_id: &str,
+) -> Option<DisplayState> {
+    let source = displays.get(source_display_id)?;
+
+    displays
+        .values()
+        .filter(|display| !display.is_blacked_out && display.id != source_display_id)
+        .min_by_key(|display| display_distance(source, display))
+        .cloned()
+}
+
+fn overlay_dock_towards(source: &DisplayState, target: &DisplayState) -> overlay::OverlayDock {
+    let source_center_x = source.x + (source.width as i32 / 2);
+    let source_center_y = source.y + (source.height as i32 / 2);
+    let target_center_x = target.x + (target.width as i32 / 2);
+    let target_center_y = target.y + (target.height as i32 / 2);
+
+    let dx = target_center_x - source_center_x;
+    let dy = target_center_y - source_center_y;
+
+    if dx == 0 && dy == 0 {
+        return overlay::OverlayDock::Center;
+    }
+
+    if dx.abs() > dy.abs() {
+        if dx > 0 {
+            overlay::OverlayDock::Right
+        } else {
+            overlay::OverlayDock::Left
+        }
+    } else if dy > 0 {
+        overlay::OverlayDock::Bottom
+    } else {
+        overlay::OverlayDock::Top
+    }
 }
 
 fn ensure_displays_loaded(app: &AppHandle, state: &SharedState) -> Result<(), String> {

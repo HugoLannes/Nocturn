@@ -30,6 +30,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_displays,
             commands::set_allow_cursor_exit_active_displays,
+            commands::set_show_overlay_hidden_apps,
             commands::toggle_display,
             commands::unblank_all,
             commands::focus_primary,
