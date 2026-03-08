@@ -1,3 +1,8 @@
+export type HiddenAppSummary = {
+  appName: string;
+  windowCount: number;
+};
+
 export type Display = {
   id: string;
   name: string;
@@ -10,6 +15,7 @@ export type Display = {
   isBlackedOut: boolean;
   hostsPanel: boolean;
   canBlackout: boolean;
+  hiddenApps: HiddenAppSummary[];
 };
 
 export type DisplayUpdatePayload = {

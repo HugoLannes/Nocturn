@@ -18,6 +18,13 @@ pub struct DisplayState {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct HiddenAppSummary {
+    pub app_name: String,
+    pub window_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DisplayInfo {
     pub id: String,
     pub name: String,
@@ -30,6 +37,7 @@ pub struct DisplayInfo {
     pub is_blacked_out: bool,
     pub hosts_panel: bool,
     pub can_blackout: bool,
+    pub hidden_apps: Vec<HiddenAppSummary>,
 }
 
 #[derive(Clone, Debug, Serialize)]

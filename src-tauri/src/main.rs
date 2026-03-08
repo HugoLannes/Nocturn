@@ -7,6 +7,7 @@ mod panel;
 mod settings;
 mod shortcut;
 mod state;
+mod window_inventory;
 
 use std::sync::{Arc, Mutex};
 
@@ -66,6 +67,8 @@ fn main() {
                     } = event
                     {
                         let _ = panel::show_panel(tray.app_handle());
+                        let state = tray.app_handle().state::<SharedState>();
+                        let _ = commands::refresh_display_snapshot(tray.app_handle(), state.inner());
                     }
                 })
                 .build(app)?;
@@ -73,6 +76,8 @@ fn main() {
             app.on_menu_event(|app, event| match event.id().as_ref() {
                 "show-panel" => {
                     let _ = panel::show_panel(app);
+                    let state = app.state::<SharedState>();
+                    let _ = commands::refresh_display_snapshot(app, state.inner());
                 }
                 "wake-all" => {
                     let state = app.state::<SharedState>();

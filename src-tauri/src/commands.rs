@@ -8,7 +8,7 @@ use log::{error, info, warn};
 use tauri::{command, AppHandle, Emitter, Manager, Monitor, State};
 
 use crate::{
-    cursor, overlay, panel, settings, shortcut,
+    cursor, overlay, panel, settings, shortcut, window_inventory,
     state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
 };
 
@@ -373,6 +373,10 @@ fn sync_runtime_behaviors(app: &AppHandle, state: &SharedState) -> Result<(), St
     Ok(())
 }
 
+pub fn refresh_display_snapshot(app: &AppHandle, state: &SharedState) -> Result<(), String> {
+    emit_displays_update(app, state)
+}
+
 fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), String> {
     let payload = build_payload(app, state)?;
     app.emit("displays-update", payload)
@@ -380,27 +384,48 @@ fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), Stri
 }
 
 fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePayload, String> {
-    let state = state.lock().expect("state poisoned");
-    let active_display_count = state.active_display_count();
-    let blackout_count = state.blackout_count();
-    let panel_display_id = current_panel_display_id(app, &state.displays);
+    let (displays_map, allow_cursor_exit_active_displays) = {
+        let state = state.lock().expect("state poisoned");
+        (
+            state.displays.clone(),
+            state.settings.allow_cursor_exit_active_displays,
+        )
+    };
+    let active_display_count = displays_map
+        .values()
+        .filter(|display| !display.is_blacked_out)
+        .count();
+    let blackout_count = displays_map
+        .values()
+        .filter(|display| display.is_blacked_out)
+        .count();
+    let panel_display_id = current_panel_display_id(app, &displays_map);
+    let hidden_apps_by_display = window_inventory::snapshot_hidden_apps_by_display(&displays_map)?;
+    overlay::sync_overlay_cards(app, hidden_apps_by_display.clone())?;
 
-    let mut displays = state
-        .displays
+    let mut displays = displays_map
         .values()
         .cloned()
-        .map(|display| DisplayInfo {
-            can_blackout: display.is_blacked_out || active_display_count > 1,
-            hosts_panel: panel_display_id.as_deref() == Some(display.id.as_str()),
-            id: display.id,
-            name: display.name,
-            width: display.width,
-            height: display.height,
-            x: display.x,
-            y: display.y,
-            scale_factor: display.scale_factor,
-            is_primary: display.is_primary,
-            is_blacked_out: display.is_blacked_out,
+        .map(|display| {
+            let display_id = display.id.clone();
+
+            DisplayInfo {
+                can_blackout: display.is_blacked_out || active_display_count > 1,
+                hosts_panel: panel_display_id.as_deref() == Some(display_id.as_str()),
+                id: display_id.clone(),
+                name: display.name,
+                width: display.width,
+                height: display.height,
+                x: display.x,
+                y: display.y,
+                scale_factor: display.scale_factor,
+                is_primary: display.is_primary,
+                is_blacked_out: display.is_blacked_out,
+                hidden_apps: hidden_apps_by_display
+                .get(&display_id)
+                .cloned()
+                .unwrap_or_default(),
+            }
         })
         .collect::<Vec<_>>();
 
@@ -410,7 +435,7 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         displays,
         active_display_count,
         blackout_count,
-        allow_cursor_exit_active_displays: state.settings.allow_cursor_exit_active_displays,
+        allow_cursor_exit_active_displays,
     })
 }
 
