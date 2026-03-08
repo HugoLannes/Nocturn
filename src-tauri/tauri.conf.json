@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "untrusted comment: minisign public key: 628C1B0F906B1AA3\nRWSjGmuQDxuMYvrNlWthTO0BJ6+6yX8HeoxYZl6190oQ1Gf0h0VP4P6U",
+      "pubkey": "RWSjGmuQDxuMYvrNlWthTO0BJ6+6yX8HeoxYZl6190oQ1Gf0h0VP4P6U",
       "endpoints": [
         "https://github.com/HugoLannes/nocturn/releases/latest/download/latest.json"
       ],
