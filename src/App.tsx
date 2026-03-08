@@ -88,7 +88,7 @@ function App() {
     displays,
     isLoading,
     isMutating,
-    pendingDisplayId,
+    pendingDisplayIds,
     blackoutCount,
     toggleDisplay,
     restoreAllDisplays,
@@ -116,12 +116,14 @@ function App() {
   );
   const hasHiddenDisplays = blackoutCount > 0;
   const hiddenDisplaysLabel = `${blackoutCount} hidden ${blackoutCount === 1 ? "display" : "displays"}`;
-  const restoreAllHint = isMutating
+  const hasPendingCards = pendingDisplayIds.size > 0;
+  const isRestoreAllBusy = isMutating || hasPendingCards;
+  const restoreAllHint = isRestoreAllBusy
     ? "Applying display changes"
     : hasHiddenDisplays
       ? "Wake every hidden screen"
       : "Nothing to restore";
-  const restoreAllStatus = isMutating ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready";
+  const restoreAllStatus = isRestoreAllBusy ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready";
   const isUpdateBusy = installState === "downloading" || installState === "installing" || installState === "relaunching";
   const shouldShowUpdateButton = isUpdateAvailable;
 
@@ -298,7 +300,7 @@ function App() {
             displays={displays}
             headline={displayHeadline}
             isMutating={isMutating}
-            pendingDisplayId={pendingDisplayId}
+            pendingDisplayIds={pendingDisplayIds}
             lastActiveDisplayId={lastActiveDisplayId}
             onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
@@ -312,7 +314,7 @@ function App() {
             type="button"
             className={wakeButtonClass(hasHiddenDisplays)}
             onClick={() => void restoreAllDisplays()}
-            disabled={!hasHiddenDisplays || isMutating}
+            disabled={!hasHiddenDisplays || isRestoreAllBusy}
             aria-label="Restore all blacked-out displays"
           >
             <span className="flex min-w-0 flex-1 items-center gap-3 max-[560px]:gap-[10px]">

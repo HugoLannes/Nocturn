@@ -11,7 +11,7 @@ type DisplayLayoutProps = {
   displays: Display[];
   headline: string;
   isMutating: boolean;
-  pendingDisplayId: string | null;
+  pendingDisplayIds: ReadonlySet<string>;
   lastActiveDisplayId: string | null;
   onFocusMode: () => void;
   onToggle: (displayId: string) => void;
@@ -101,7 +101,7 @@ function displayCardStyle(display: Display, isPending: boolean, left: number, to
       ? "linear-gradient(180deg, rgba(248, 113, 113, 0.1), rgba(255, 255, 255, 0.015) 30%), linear-gradient(180deg, rgba(25, 20, 22, 0.96), rgba(11, 11, 15, 0.94))"
       : "linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(255, 255, 255, 0.015) 30%), linear-gradient(180deg, rgba(20, 19, 28, 0.96), rgba(11, 12, 18, 0.92))",
     boxShadow: isPending
-      ? "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 0 4px rgba(255, 255, 255, 0.03)"
+      ? "inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 0 1.5px rgba(255, 255, 255, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.04), 0 12px 28px rgba(2, 6, 23, 0.28)"
       : "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 24px rgba(2, 6, 23, 0.18)",
   };
 }
@@ -110,7 +110,7 @@ export function DisplayLayout({
   displays,
   headline,
   isMutating,
-  pendingDisplayId,
+  pendingDisplayIds,
   lastActiveDisplayId,
   onFocusMode,
   onToggle,
@@ -166,8 +166,10 @@ export function DisplayLayout({
         <div className="relative h-full w-full">
           {displays.map((display, index) => {
             const isLastActive = lastActiveDisplayId === display.id && !display.isBlackedOut;
-            const isDisabled = isMutating || isLastActive || !display.canBlackout;
-            const isPending = pendingDisplayId === display.id;
+            const isPending = pendingDisplayIds.has(display.id);
+            // isMutating is only true during global ops (focus mode, restore all).
+            // Individual card toggles use per-card isPending so other cards stay interactive.
+            const isDisabled = isMutating || isPending || isLastActive || !display.canBlackout;
             const left = ((display.x - minX) / totalWidth) * 100;
             const top = ((display.y - minY) / totalHeight) * 100;
             const width = (display.width / totalWidth) * 100;
@@ -185,8 +187,12 @@ export function DisplayLayout({
                 key={display.id}
                 type="button"
                 className={cn(
-                  "absolute grid min-h-[72px] min-w-[92px] grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] disabled:pointer-events-none disabled:opacity-[0.58] max-[560px]:min-h-[68px] max-[560px]:min-w-[84px] max-[560px]:p-2",
-                  display.isBlackedOut ? "border-[rgba(248,113,113,0.2)]" : "border-[rgba(var(--accent-rgb),0.26)]",
+                  "absolute grid min-h-[72px] min-w-[92px] cursor-pointer grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity,transform] duration-120 ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] enabled:active:scale-[0.99] disabled:pointer-events-none disabled:opacity-[0.58] max-[560px]:min-h-[68px] max-[560px]:min-w-[84px] max-[560px]:p-2",
+                  isPending
+                    ? "border-white/20"
+                    : display.isBlackedOut
+                      ? "border-[rgba(248,113,113,0.2)]"
+                      : "border-[rgba(var(--accent-rgb),0.26)]",
                   isCompact && "gap-[5px] p-2",
                   isTiny && "gap-1 p-[7px]",
                 )}
@@ -201,6 +207,16 @@ export function DisplayLayout({
                   <span className={cn(layoutEyebrowClass, eyebrowSizeClass)} style={monoTextStyle}>
                     {displayEyebrow(display, index)}
                   </span>
+                  <span
+                    className={cn(
+                      "h-[7px] w-[7px] shrink-0 rounded-full transition-[background-color,box-shadow] duration-120",
+                      display.isBlackedOut
+                        ? "bg-[rgba(248,113,113,0.9)] shadow-[0_0_6px_rgba(248,113,113,0.7),0_0_12px_rgba(248,113,113,0.35)]"
+                        : "bg-[rgba(var(--accent-rgb),0.9)] shadow-[0_0_6px_rgba(var(--accent-rgb),0.7),0_0_12px_rgba(var(--accent-rgb),0.35)]",
+                      isPending && "animate-pulse",
+                    )}
+                    aria-hidden="true"
+                  />
                 </span>
                 <span className="flex min-w-0 flex-col items-start justify-center gap-1">
                   <span className={cn("max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-[1.05] tracking-[-0.035em]", nameSizeClass)}>
