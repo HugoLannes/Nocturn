@@ -1,62 +1,64 @@
 <p align="center">
-  <img src="src-tauri/icon-source.svg" alt="Nocturn logo" width="132" />
+  <img src="src-tauri/icon-source.svg" alt="Nocturn logo" width="120" />
 </p>
 
 <h1 align="center">Nocturn</h1>
 
 <p align="center">
-  Darken one or more screens instantly, without disturbing the rest of your setup.
+  Black out any screen instantly. Keep the rest of your setup untouched.
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.2-111827?style=for-the-badge" />
-  <img alt="Status" src="https://img.shields.io/badge/status-MVP-ec4899?style=for-the-badge" />
+  <a href="https://github.com/HugoLannes/nocturn/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/HugoLannes/nocturn?style=for-the-badge&color=7B61FF" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows" />
+  <a href="https://github.com/HugoLannes/nocturn/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/HugoLannes/nocturn?style=for-the-badge&color=111827" /></a>
 </p>
 
 <p align="center">
-  <img src="src/assets/preview-1.png" alt="Nocturn preview showing the display blackout control panel" width="960" />
+  <img src="src/assets/preview-1.png" alt="Nocturn – display blackout panel" width="960" />
 </p>
 
-> Made for night setups, focus sessions, and multi-screen desks where one monitor can quickly become too much light.
+---
 
-## What Nocturn Is
+Nocturn is a lightweight Windows tray utility for multi-monitor setups. It places a fullscreen black overlay on any display you choose — without cutting the video signal, moving your windows, or changing your desktop topology.
 
-Nocturn is a lightweight Windows app that lets you instantly darken selected screens while keeping the rest of your desktop usable.
+Useful at night, during focused work, or anytime a spare monitor is just extra light.
 
-It is built for people who want more control over their workspace at night, during focused work, or whenever an extra monitor becomes distracting.
+## Features
 
-## Why People Use It
+- **Per-display blackout** — darken one screen or several at once with a single click.
+- **Instant restore** — bring everything back immediately, or wake all displays at once.
+- **Safety guard** — always keeps at least one display active; the panel moves out of the way automatically.
+- **Tray-resident** — runs quietly in the system tray, opens on click.
+- **Auto-updater** — checks for new releases and updates in the background.
 
-- A side monitor is lighting up the whole room at night.
-- You want fewer visual distractions without changing your setup.
-- You want to keep one screen active and quiet the others.
-- You need a fast way to hide and restore screens whenever you want.
+## Install
 
-## What You Can Do
+Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/nocturn/releases/latest).
 
-- Darken one screen or several at once.
-- Keep your main screen available.
-- Bring every screen back instantly.
-- Use a compact control panel instead of digging through system settings.
-- Keep your preferences from one session to the next.
+## Build from source
 
-## Product Direction
+Nocturn is built with [Tauri 2](https://tauri.app/), React, and Rust.
 
-Nocturn is designed to feel simple, immediate, and calm.
+```bash
+# prerequisites: Node >=18, Rust, Tauri CLI
+npm install
+npm run tauri:dev      # development
+npm run tauri:build    # production installer
+```
 
-The goal is not to manage your whole desktop. The goal is to give you one clean action: make unwanted screens disappear, then bring them back just as fast.
+## Tech stack
 
-## Current State
+| Layer    | Technology              |
+|----------|-------------------------|
+| Shell    | Tauri 2 (Rust)          |
+| Frontend | React 19 · TypeScript · Tailwind CSS 4 |
+| Build    | Vite 7                  |
 
-- Windows only
-- Early public version
-- Focused on the core experience first
+## Contributing
 
-## Download
+Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/nocturn/issues).
 
-Get the latest Windows installer from GitHub Releases.
+## License
 
-## Documentation
-
-If you want more context on the product vision and upcoming direction, the main notes live in `docs/`.
+[MIT](LICENSE)
