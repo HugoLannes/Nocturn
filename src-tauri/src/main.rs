@@ -40,6 +40,10 @@ fn main() {
         .setup(|app| {
             let loaded_settings = settings::load_settings(app.handle())?;
             let state = app.state::<SharedState>();
+            let tray_icon = app
+                .default_window_icon()
+                .cloned()
+                .ok_or("Missing default app icon")?;
 
             {
                 let mut state = state.lock().expect("state poisoned");
@@ -57,6 +61,7 @@ fn main() {
                 .build()?;
 
             TrayIconBuilder::new()
+                .icon(tray_icon)
                 .tooltip("Nocturn")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
@@ -69,7 +74,8 @@ fn main() {
                     {
                         let _ = panel::show_panel(tray.app_handle());
                         let state = tray.app_handle().state::<SharedState>();
-                        let _ = commands::refresh_display_snapshot(tray.app_handle(), state.inner());
+                        let _ =
+                            commands::refresh_display_snapshot(tray.app_handle(), state.inner());
                     }
                 })
                 .build(app)?;
