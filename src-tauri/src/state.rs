@@ -1,5 +1,5 @@
-use serde::Serialize;
-use std::{collections::HashMap, time::Instant};
+ use serde::Serialize;
+ use std::collections::HashMap;
 
 use crate::settings::AppSettings;
 
@@ -53,9 +53,7 @@ pub struct DisplayUpdatePayload {
 pub struct NocturnState {
     pub displays: HashMap<String, DisplayState>,
     pub settings: AppSettings,
-    pub shortcut_registered: bool,
     pub toggle_in_progress: bool,
-    pub last_space_press_at: Option<Instant>,
 }
 
 impl Default for NocturnState {
@@ -63,9 +61,7 @@ impl Default for NocturnState {
         Self {
             displays: HashMap::new(),
             settings: AppSettings::default(),
-            shortcut_registered: false,
             toggle_in_progress: false,
-            last_space_press_at: None,
         }
     }
 }
@@ -75,13 +71,6 @@ impl NocturnState {
         self.displays
             .values()
             .filter(|display| !display.is_blacked_out)
-            .count()
-    }
-
-    pub fn blackout_count(&self) -> usize {
-        self.displays
-            .values()
-            .filter(|display| display.is_blacked_out)
             .count()
     }
 }

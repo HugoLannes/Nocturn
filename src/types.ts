@@ -3,6 +3,14 @@ export type HiddenAppSummary = {
   windowCount: number;
 };
 
+export type OverlayDock = "top" | "right" | "bottom" | "left" | "center";
+
+export type OverlayCardPresentation = {
+  hiddenApps: HiddenAppSummary[];
+  dock: OverlayDock;
+  isEnabled: boolean;
+};
+
 export type Display = {
   id: string;
   name: string;

@@ -107,14 +107,14 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
-  const wakeAll = useCallback(async () => {
+  const restoreAllDisplays = useCallback(async () => {
     setIsMutating(true);
     setPendingDisplayId(null);
 
     try {
-      await withTimeout(invoke("unblank_all"), "Waking displays");
+      await withTimeout(invoke("unblank_all"), "Restoring displays");
     } catch (error) {
-      console.error("Failed to wake displays:", error);
+      console.error("Failed to restore displays:", error);
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -199,7 +199,7 @@ export function useDisplays() {
     pendingDisplayId,
     loadDisplays,
     toggleDisplay,
-    wakeAll,
+    restoreAllDisplays,
     focusPrimary,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,

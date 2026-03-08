@@ -30,7 +30,7 @@ function App() {
     pendingDisplayId,
     blackoutCount,
     toggleDisplay,
-    wakeAll,
+    restoreAllDisplays,
     focusPrimary,
     allowCursorExitActiveDisplays,
     showOverlayHiddenApps,
@@ -55,10 +55,10 @@ function App() {
   );
   const hasHiddenDisplays = blackoutCount > 0;
   const hiddenDisplaysLabel = `${blackoutCount} hidden ${blackoutCount === 1 ? "display" : "displays"}`;
-  const wakeAllHint = isMutating
+  const restoreAllHint = isMutating
     ? "Syncing display state..."
     : hasHiddenDisplays
-      ? `${hiddenDisplaysLabel} - double-tap Space`
+      ? hiddenDisplaysLabel
       : "All displays are active";
   const isUpdateBusy = installState === "downloading" || installState === "installing" || installState === "relaunching";
   const shouldShowUpdateButton = isUpdateAvailable;
@@ -223,13 +223,13 @@ function App() {
           <button
             type="button"
             className={`wake-btn ${hasHiddenDisplays ? "wake-btn-active" : ""}`}
-            onClick={() => void wakeAll()}
+            onClick={() => void restoreAllDisplays()}
             disabled={!hasHiddenDisplays || isMutating}
             aria-label="Restore all blacked-out displays"
           >
             <span className="wake-btn-copy">
               <span className="wake-btn-label">Restore all displays</span>
-              <span className="wake-btn-hint">{wakeAllHint}</span>
+              <span className="wake-btn-hint">{restoreAllHint}</span>
             </span>
             <span className="wake-btn-badge">
               {isMutating ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready"}

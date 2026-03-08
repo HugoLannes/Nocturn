@@ -7,10 +7,10 @@ use std::{
 use log::{error, info, warn};
 use tauri::{command, AppHandle, Emitter, Manager, Monitor, State};
 
-use crate::{
-    cursor, overlay, panel, settings, shortcut, window_inventory,
-    state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
-};
+ use crate::{
+     cursor, overlay, panel, settings, window_inventory,
+     state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
+ };
 
 pub type SharedState = Arc<Mutex<NocturnState>>;
 
@@ -40,8 +40,13 @@ pub fn get_displays(
     state: State<'_, SharedState>,
 ) -> Result<DisplayUpdatePayload, String> {
     ensure_displays_loaded(&app, state.inner())?;
-    sync_runtime_behaviors(&app, state.inner())?;
+    sync_runtime_behaviors(state.inner());
     build_payload(&app, state.inner())
+}
+
+#[command]
+pub fn get_overlay_card_presentation(window_label: String) -> Option<overlay::OverlayPresentation> {
+    overlay::get_overlay_card_presentation(&window_label)
 }
 
 #[command]
@@ -66,7 +71,7 @@ pub fn set_allow_cursor_exit_active_displays(
         return Err(error);
     }
 
-    sync_runtime_behaviors(&app, state.inner())?;
+    sync_runtime_behaviors(state.inner());
     emit_displays_update(&app, state.inner())?;
     build_payload(&app, state.inner())
 }
@@ -201,7 +206,7 @@ pub fn unblank_all_internal(app: &AppHandle, state: &SharedState) -> Result<(), 
         }
     }
 
-    sync_runtime_behaviors(app, state)?;
+    sync_runtime_behaviors(state);
     emit_displays_update(app, state)?;
 
     info!(
@@ -283,7 +288,7 @@ pub fn focus_primary_internal(app: &AppHandle, state: &SharedState) -> Result<St
         }
     }
 
-    sync_runtime_behaviors(app, state)?;
+    sync_runtime_behaviors(state);
     emit_displays_update(app, state)?;
 
     info!(
@@ -328,7 +333,7 @@ fn toggle_display_internal(
             }
         }
 
-        sync_runtime_behaviors(app, state)?;
+        sync_runtime_behaviors(state);
         emit_displays_update(app, state)?;
         info!(
             "toggle_display_internal: restore done id={} in {}ms",
@@ -382,7 +387,7 @@ fn toggle_display_internal(
         }
     }
 
-    sync_runtime_behaviors(app, state)?;
+    sync_runtime_behaviors(state);
     emit_displays_update(app, state)?;
 
     info!(
@@ -393,10 +398,8 @@ fn toggle_display_internal(
     Ok("Display blacked out.".to_string())
 }
 
-fn sync_runtime_behaviors(app: &AppHandle, state: &SharedState) -> Result<(), String> {
-    shortcut::sync_space_shortcut(app, state)?;
+fn sync_runtime_behaviors(state: &SharedState) {
     cursor::sync_cursor_confinement(state);
-    Ok(())
 }
 
 pub fn refresh_display_snapshot(app: &AppHandle, state: &SharedState) -> Result<(), String> {
@@ -433,7 +436,7 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         &hidden_apps_by_display,
         show_overlay_hidden_apps,
     );
-    overlay::sync_overlay_cards(app, overlay_presentations)?;
+    overlay::sync_overlay_cards(app, &displays_map, overlay_presentations)?;
 
     let mut displays = displays_map
         .values()
