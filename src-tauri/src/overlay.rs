@@ -34,6 +34,7 @@ const CARD_MARGIN: i32 = 18;
 const CARD_GAP: i32 = 7;
 const CARD_ROW_HEIGHT: i32 = 42;
 const CARD_PADDING_Y: i32 = 12;
+const CARD_HEADER_HEIGHT: i32 = 20;
 const CARD_WINDOW_PADDING: i32 = 0;
 
 #[derive(Clone, Copy, Debug, Default, Serialize)]
@@ -494,7 +495,7 @@ fn overlay_card_rect(display: &DisplayState, presentation: &OverlayPresentation)
     let client_rect = rect(0, 0, display.width as i32, display.height as i32);
     let row_count = overlay_row_count(&presentation.hidden_apps) as i32;
     let card_inner_height =
-        CARD_PADDING_Y * 2 + row_count * CARD_ROW_HEIGHT + row_count.saturating_sub(1) * CARD_GAP;
+        CARD_PADDING_Y * 2 + CARD_HEADER_HEIGHT + row_count * CARD_ROW_HEIGHT + row_count.saturating_sub(1) * CARD_GAP;
     let outer_width = CARD_WIDTH + CARD_WINDOW_PADDING * 2;
     let outer_height = card_inner_height + CARD_WINDOW_PADDING * 2;
 
