@@ -9,9 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/HugoLannes/nocturn/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/HugoLannes/nocturn?style=for-the-badge&color=7B61FF" /></a>
-  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows" />
-  <a href="https://github.com/HugoLannes/nocturn/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/HugoLannes/nocturn?style=for-the-badge&color=111827" /></a>
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.2-111827?style=for-the-badge" />
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-111827?style=for-the-badge" />
 </p>
 
 <p align="center">
