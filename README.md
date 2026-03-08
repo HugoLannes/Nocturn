@@ -22,7 +22,7 @@
 
 ## What Nocturn Is
 
-Nocturn is a small Windows app that lets you turn selected screens fully dark in a second, while keeping the rest of your desktop usable.
+Nocturn is a lightweight Windows app that lets you instantly darken selected screens while keeping the rest of your desktop usable.
 
 It is built for people who want more control over their workspace at night, during focused work, or whenever an extra monitor becomes distracting.
 
