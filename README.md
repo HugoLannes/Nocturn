@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-111827?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.2-111827?style=for-the-badge" />
   <img alt="Status" src="https://img.shields.io/badge/status-MVP-ec4899?style=for-the-badge" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows" />
 </p>
