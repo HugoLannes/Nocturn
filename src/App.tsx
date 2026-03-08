@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import appLogo from "./assets/nocturn-mark.svg";
 import packageInfo from "../package.json";
 import { DisplayLayout } from "./components/DisplayLayout";
@@ -7,6 +7,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { Tooltip } from "./components/Tooltip";
 import { useDisplays } from "./hooks/useDisplays";
 import { useUpdater } from "./hooks/useUpdater";
+import { cn, monoTextStyle } from "./ui";
 
 type AppView = "displays" | "settings";
 
@@ -21,19 +22,72 @@ const DISPLAY_HEADLINES = [
   "Night mode, softly.",
 ];
 
+const appShellStyle = {
+  background: "var(--bg)",
+  backgroundImage:
+    "radial-gradient(ellipse 70% 45% at 25% -5%, rgba(var(--accent-rgb), 0.12) 0%, transparent 100%), radial-gradient(ellipse 50% 35% at 85% 105%, rgba(52, 211, 153, 0.06) 0%, transparent 100%)",
+} satisfies CSSProperties;
+
+const titlebarLogoStyle = {
+  filter: "drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.72)) drop-shadow(0 0 18px rgba(var(--accent-rgb), 0.44))",
+} satisfies CSSProperties;
+
+const titlebarNameStyle = {
+  filter: "drop-shadow(0 0 10px rgba(var(--accent-rgb), 0.16))",
+} satisfies CSSProperties;
+
+const splashStyle = {
+  background:
+    "radial-gradient(circle at 50% 42%, rgba(var(--accent-rgb), 0.22), transparent 34%), radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb), 0.11), transparent 58%), rgba(8, 8, 13, 0.97)",
+  backdropFilter: "blur(14px)",
+} satisfies CSSProperties;
+
+const splashMarkStyle = {
+  background: "linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015))",
+  boxShadow: "0 24px 70px rgba(var(--accent-rgb), 0.18)",
+} satisfies CSSProperties;
+
+const splashMarkGlowStyle = {
+  background: "radial-gradient(circle, rgba(var(--accent-rgb), 0.24), transparent 72%)",
+  filter: "blur(6px)",
+} satisfies CSSProperties;
+
+const splashLogoStyle = {
+  filter: "drop-shadow(0 0 18px rgba(var(--accent-rgb), 0.4))",
+} satisfies CSSProperties;
+
+const toolbarButtonClass = "grid h-8 w-8 place-items-center rounded-[10px] border border-white/8 bg-white/[0.035] text-[var(--text-secondary)] transition-[border-color,background,color,box-shadow] duration-[140ms] ease-out hover:border-white/15 hover:bg-white/8 hover:text-[var(--text-primary)] disabled:cursor-default max-[560px]:h-7 max-[560px]:w-7";
+
+const updateToolbarButtonClass = "border-[rgba(var(--accent-rgb),0.28)] text-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.14),0_0_18px_rgba(var(--accent-rgb),0.16)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.26)_0%,rgba(var(--accent-rgb),0.18)_100%)] hover:border-[rgba(var(--accent-rgb),0.42)] hover:text-[#f6f3ff] hover:shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.18),0_0_22px_rgba(var(--accent-rgb),0.24)] hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.34)_0%,rgba(var(--accent-rgb),0.24)_100%)] motion-reduce:animate-none";
+
+const updateToolbarBusyClass = "border-[rgba(var(--accent-rgb),0.34)] text-[#f6f3ff] shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.16),0_0_18px_rgba(var(--accent-rgb),0.18)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.28)_0%,rgba(var(--accent-rgb),0.2)_100%)]";
+
+const windowControlClass = "grid h-[26px] w-[26px] place-items-center rounded-[6px] border-0 bg-transparent text-[var(--text-secondary)] transition-[background,color] duration-[120ms] ease-out hover:bg-white/8 hover:text-[var(--text-primary)]";
+
+function wakeButtonClass(isActive: boolean) {
+  return cn(
+    "flex h-10 w-full items-center justify-center rounded-[12px] border px-4 text-[var(--text-primary)] transition-[border-color,background,transform,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px enabled:hover:border-[rgba(var(--accent-rgb),0.34)] enabled:hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.16),rgba(255,255,255,0.04)_54%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(var(--accent-rgb),0.18)] disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:h-9 max-[560px]:px-3",
+    isActive
+      ? "border-[rgba(var(--accent-rgb),0.28)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.18),rgba(255,255,255,0.035)_54%),rgba(255,255,255,0.03)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_rgba(var(--accent-rgb),0.14)]"
+      : "border-white/10 [background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)_54%),rgba(255,255,255,0.028)]",
+  );
+}
+
 function App() {
   const appVersion = `v${packageInfo.version}`;
   const {
     displays,
     isLoading,
     isMutating,
-    pendingDisplayId,
+    pendingDisplayIds,
     blackoutCount,
     toggleDisplay,
-    wakeAll,
+    restoreAllDisplays,
     focusPrimary,
     allowCursorExitActiveDisplays,
+    showOverlayHiddenApps,
     setAllowCursorExitActiveDisplays,
+    setShowOverlayHiddenApps,
     lastActiveDisplayId,
   } = useDisplays();
   const {
@@ -52,12 +106,8 @@ function App() {
     () => DISPLAY_HEADLINES[Math.floor(Math.random() * DISPLAY_HEADLINES.length)],
   );
   const hasHiddenDisplays = blackoutCount > 0;
-  const hiddenDisplaysLabel = `${blackoutCount} hidden ${blackoutCount === 1 ? "display" : "displays"}`;
-  const wakeAllHint = isMutating
-    ? "Syncing display state..."
-    : hasHiddenDisplays
-      ? `${hiddenDisplaysLabel} - double-tap Space`
-      : "All displays are active";
+  const hasPendingCards = pendingDisplayIds.size > 0;
+  const isRestoreAllBusy = isMutating || hasPendingCards;
   const isUpdateBusy = installState === "downloading" || installState === "installing" || installState === "relaunching";
   const shouldShowUpdateButton = isUpdateAvailable;
 
@@ -103,30 +153,48 @@ function App() {
   }, [hasMetMinimumSplash, isLoading]);
 
   return (
-    <div className="app">
+    <div className="relative flex h-screen flex-col overflow-hidden" style={appShellStyle}>
       {showSplash && (
-        <div className={`startup-splash ${isSplashExiting ? "startup-splash-exit" : ""}`} aria-hidden={isSplashExiting}>
-          <div className="startup-splash-mark">
-            <img src={appLogo} alt="Nocturn logo" className="startup-splash-logo" />
+        <div
+          className={cn(
+            "absolute inset-0 z-20 flex flex-col items-center justify-center gap-[18px] transition-[opacity,transform] duration-[280ms] ease-out",
+            isSplashExiting && "pointer-events-none scale-[1.02] opacity-0",
+          )}
+          style={splashStyle}
+          aria-hidden={isSplashExiting}
+        >
+          <div className="relative grid h-[112px] w-[112px] place-items-center rounded-[28px] border border-white/8 max-[560px]:h-24 max-[560px]:w-24" style={splashMarkStyle}>
+            <div className="absolute inset-[14px] rounded-[22px]" style={splashMarkGlowStyle} aria-hidden="true" />
+            <img src={appLogo} alt="Nocturn logo" className="relative z-[1] h-[70px] w-[70px] object-contain max-[560px]:h-[60px] max-[560px]:w-[60px]" style={splashLogoStyle} />
           </div>
-          <div className="startup-splash-copy">
-            <span className="startup-splash-name">Nocturn</span>
-            <span className="startup-splash-status">Preparing your displays...</span>
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[22px] font-bold tracking-[-0.04em] max-[560px]:text-[20px]">Nocturn</span>
+            <span className="text-[11px] uppercase tracking-[0.08em] text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>
+              Preparing your displays...
+            </span>
           </div>
         </div>
       )}
 
-      <header className="titlebar" data-tauri-drag-region>
-        <div className="titlebar-brand">
-          <img src={appLogo} alt="Nocturn logo" className="titlebar-logo" />
-          <span className="titlebar-name">Nocturn</span>
-          <span className="titlebar-status status-ok">
-            <span className="status-dot" />
-            <span className="status-text">{appVersion}</span>
+      <header
+        className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--border)] pl-[14px] pr-[10px] [-webkit-app-region:drag] [app-region:drag]"
+        data-tauri-drag-region
+      >
+        <div className="flex items-center gap-[10px]">
+          <img src={appLogo} alt="Nocturn logo" className="h-7 w-7 object-contain" style={titlebarLogoStyle} />
+          <span
+            className="inline-flex items-center bg-[linear-gradient(180deg,#ffffff_0%,var(--accent-soft)_100%)] bg-clip-text text-[16px] font-bold leading-none tracking-[-0.055em] text-transparent [-webkit-text-fill-color:transparent]"
+            style={titlebarNameStyle}
+          >
+            Nocturn
+          </span>
+          <span className="flex items-center gap-[5px] rounded-full border border-white/6 bg-white/5 px-2 py-[3px] pl-[6px]">
+            <span className="h-[5px] w-[5px] rounded-full bg-[var(--dot-on)] shadow-[0_0_6px_var(--glow-on)]" />
+            <span className="whitespace-nowrap text-[11px] font-medium tracking-[0.01em] text-[var(--text-secondary)]">{appVersion}</span>
           </span>
         </div>
 
-        <div className="titlebar-actions">
+        <div className="flex items-center gap-2 max-[560px]:gap-[6px] [-webkit-app-region:no-drag] [app-region:no-drag]">
           {shouldShowUpdateButton && (
             <Tooltip
               side="bottom"
@@ -135,7 +203,12 @@ function App() {
             >
               <button
                 type="button"
-                className={`toolbar-btn toolbar-btn-update ${isUpdateBusy ? "toolbar-btn-update-busy" : ""}`}
+                className={cn(
+                  toolbarButtonClass,
+                  isUpdateBusy
+                    ? updateToolbarBusyClass
+                    : `${updateToolbarButtonClass} animate-[update-glow-pulse_2.2s_ease-in-out_infinite]`,
+                )}
                 onClick={() => void installUpdate()}
                 aria-label={isUpdateBusy ? "Installing update" : "Install available update"}
                 disabled={isUpdateBusy}
@@ -151,7 +224,10 @@ function App() {
 
           <button
             type="button"
-            className={`toolbar-btn ${activeView === "settings" ? "toolbar-btn-active" : ""}`}
+            className={cn(
+              toolbarButtonClass,
+              activeView === "settings" && "border-[rgba(var(--accent-rgb),0.34)] bg-[rgba(var(--accent-rgb),0.16)] text-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.16)]",
+            )}
             onClick={() => setActiveView((currentView) => (currentView === "settings" ? "displays" : "settings"))}
             aria-label={activeView === "settings" ? "Close settings" : "Open settings"}
             aria-pressed={activeView === "settings"}
@@ -169,10 +245,10 @@ function App() {
             </svg>
           </button>
 
-          <div className="titlebar-controls">
+          <div className="flex gap-[3px] [-webkit-app-region:no-drag] [app-region:no-drag]">
             <button
               type="button"
-              className="wc-btn wc-minimize"
+              className={windowControlClass}
               onClick={() => void invoke("hide_window")}
               aria-label="Minimize to tray"
             >
@@ -182,7 +258,7 @@ function App() {
             </button>
             <button
               type="button"
-              className="wc-btn wc-close"
+              className={cn(windowControlClass, "hover:bg-[rgba(239,68,68,0.22)] hover:text-[#fca5a5]")}
               onClick={() => void invoke("close_app")}
               aria-label="Close"
             >
@@ -194,19 +270,21 @@ function App() {
         </div>
       </header>
 
-      <main className="content">
+      <main className="min-h-0 flex-1 overflow-hidden px-4 pb-3 pt-[14px] max-[560px]:px-3 max-[560px]:pb-[10px] max-[560px]:pt-3">
         {activeView === "settings" ? (
           <SettingsPage
             allowCursorExitActiveDisplays={allowCursorExitActiveDisplays}
+            showOverlayHiddenApps={showOverlayHiddenApps}
             isMutating={isMutating}
             onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
+            onToggleShowOverlayHiddenApps={(enabled) => void setShowOverlayHiddenApps(enabled)}
           />
         ) : (
           <DisplayLayout
             displays={displays}
             headline={displayHeadline}
             isMutating={isMutating}
-            pendingDisplayId={pendingDisplayId}
+            pendingDisplayIds={pendingDisplayIds}
             lastActiveDisplayId={lastActiveDisplayId}
             onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
@@ -215,21 +293,15 @@ function App() {
       </main>
 
       {activeView !== "settings" && (
-        <div className="bottom-actions">
+        <div className="shrink-0 border-t border-[var(--border)] px-3 pb-3 pt-[10px]">
           <button
             type="button"
-            className={`wake-btn ${hasHiddenDisplays ? "wake-btn-active" : ""}`}
-            onClick={() => void wakeAll()}
-            disabled={!hasHiddenDisplays || isMutating}
+            className={wakeButtonClass(hasHiddenDisplays)}
+            onClick={() => void restoreAllDisplays()}
+            disabled={!hasHiddenDisplays || isRestoreAllBusy}
             aria-label="Restore all blacked-out displays"
           >
-            <span className="wake-btn-copy">
-              <span className="wake-btn-label">Restore all displays</span>
-              <span className="wake-btn-hint">{wakeAllHint}</span>
-            </span>
-            <span className="wake-btn-badge">
-              {isMutating ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready"}
-            </span>
+            <span className="text-[13px] font-semibold leading-[1.05] tracking-[-0.03em]">Restore all displays</span>
           </button>
         </div>
       )}

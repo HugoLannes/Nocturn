@@ -9,6 +9,7 @@ type UseDisplaysState = {
   activeDisplayCount: number;
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
+  showOverlayHiddenApps: boolean;
 };
 
 const INITIAL_STATE: UseDisplaysState = {
@@ -17,6 +18,7 @@ const INITIAL_STATE: UseDisplaysState = {
   activeDisplayCount: 0,
   blackoutCount: 0,
   allowCursorExitActiveDisplays: true,
+  showOverlayHiddenApps: true,
 };
 
 const COMMAND_TIMEOUT_MS = 5000;
@@ -43,7 +45,7 @@ function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = COMMAND_
 export function useDisplays() {
   const [state, setState] = useState<UseDisplaysState>(INITIAL_STATE);
   const [isMutating, setIsMutating] = useState(false);
-  const [pendingDisplayId, setPendingDisplayId] = useState<string | null>(null);
+  const [pendingDisplayIds, setPendingDisplayIds] = useState<ReadonlySet<string>>(new Set<string>());
 
   const loadDisplays = useCallback(async () => {
     try {
@@ -54,6 +56,7 @@ export function useDisplays() {
         activeDisplayCount: payload.activeDisplayCount,
         blackoutCount: payload.blackoutCount,
         allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: payload.showOverlayHiddenApps,
         isLoading: false,
       }));
     } catch (error) {
@@ -77,6 +80,7 @@ export function useDisplays() {
         activeDisplayCount: event.payload.activeDisplayCount,
         blackoutCount: event.payload.blackoutCount,
         allowCursorExitActiveDisplays: event.payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: event.payload.showOverlayHiddenApps,
         isLoading: false,
       }));
     }).then((cleanup) => {
@@ -89,28 +93,67 @@ export function useDisplays() {
   }, [loadDisplays]);
 
   const toggleDisplay = useCallback(async (displayId: string) => {
-    setIsMutating(true);
-    setPendingDisplayId(displayId);
+    setPendingDisplayIds((prev) => new Set([...prev, displayId]));
+
+    // Optimistic update: flip the display state immediately so the UI responds
+    // without waiting for the backend round-trip.
+    setState((current) => {
+      const display = current.displays.find((d) => d.id === displayId);
+      if (!display) return current;
+      const willBeBlackedOut = !display.isBlackedOut;
+      return {
+        ...current,
+        displays: current.displays.map((d) =>
+          d.id === displayId ? { ...d, isBlackedOut: willBeBlackedOut } : d,
+        ),
+        activeDisplayCount: willBeBlackedOut
+          ? current.activeDisplayCount - 1
+          : current.activeDisplayCount + 1,
+        blackoutCount: willBeBlackedOut
+          ? current.blackoutCount + 1
+          : current.blackoutCount - 1,
+      };
+    });
 
     try {
       await withTimeout(invoke<string>("toggle_display", { id: displayId }), "Toggling display");
     } catch (error) {
       console.error(`Failed to toggle display ${displayId}:`, error);
+      // Revert the optimistic update on failure.
+      setState((current) => {
+        const display = current.displays.find((d) => d.id === displayId);
+        if (!display) return current;
+        const revertToBlackedOut = !display.isBlackedOut;
+        return {
+          ...current,
+          displays: current.displays.map((d) =>
+            d.id === displayId ? { ...d, isBlackedOut: revertToBlackedOut } : d,
+          ),
+          activeDisplayCount: revertToBlackedOut
+            ? current.activeDisplayCount - 1
+            : current.activeDisplayCount + 1,
+          blackoutCount: revertToBlackedOut
+            ? current.blackoutCount + 1
+            : current.blackoutCount - 1,
+        };
+      });
       void loadDisplays();
     } finally {
-      setIsMutating(false);
-      setPendingDisplayId(null);
+      setPendingDisplayIds((prev) => {
+        const next = new Set(prev);
+        next.delete(displayId);
+        return next;
+      });
     }
   }, [loadDisplays]);
 
-  const wakeAll = useCallback(async () => {
+  const restoreAllDisplays = useCallback(async () => {
     setIsMutating(true);
-    setPendingDisplayId(null);
 
     try {
-      await withTimeout(invoke("unblank_all"), "Waking displays");
+      await withTimeout(invoke("unblank_all"), "Restoring displays");
     } catch (error) {
-      console.error("Failed to wake displays:", error);
+      console.error("Failed to restore displays:", error);
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -119,7 +162,6 @@ export function useDisplays() {
 
   const focusPrimary = useCallback(async () => {
     setIsMutating(true);
-    setPendingDisplayId(null);
 
     try {
       await withTimeout(invoke("focus_primary"), "Enabling focus mode");
@@ -155,6 +197,31 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
+  const setShowOverlayHiddenApps = useCallback(async (enabled: boolean) => {
+    setIsMutating(true);
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("set_show_overlay_hidden_apps", { enabled }),
+        "Updating overlay app labels",
+      );
+
+      setState((current) => ({
+        ...current,
+        displays: payload.displays,
+        activeDisplayCount: payload.activeDisplayCount,
+        blackoutCount: payload.blackoutCount,
+        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+        showOverlayHiddenApps: payload.showOverlayHiddenApps,
+      }));
+    } catch (error) {
+      console.error("Failed to update overlay app labels:", error);
+      void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
   const lastActiveDisplayId = useMemo(() => {
     if (state.activeDisplayCount !== 1) {
       return null;
@@ -167,12 +234,13 @@ export function useDisplays() {
   return {
     ...state,
     isMutating,
-    pendingDisplayId,
+    pendingDisplayIds,
     loadDisplays,
     toggleDisplay,
-    wakeAll,
+    restoreAllDisplays,
     focusPrimary,
     setAllowCursorExitActiveDisplays,
+    setShowOverlayHiddenApps,
     lastActiveDisplayId,
   };
 }
