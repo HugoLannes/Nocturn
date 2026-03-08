@@ -19,7 +19,7 @@ type OverlayRow =
 
 const overlayShellStyle = {
   background:
-    "linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(255, 255, 255, 0.015) 30%), linear-gradient(180deg, rgba(20, 19, 28, 0.96), rgba(11, 12, 18, 0.92))",
+    "radial-gradient(140% 140% at 0% 0%, rgba(var(--accent-rgb), 0.12) 0%, rgba(var(--accent-rgb), 0.05) 18%, rgba(255, 255, 255, 0.015) 34%, rgba(255, 255, 255, 0) 52%), linear-gradient(180deg, rgba(20, 19, 28, 0.96), rgba(11, 12, 18, 0.92))",
   boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 24px rgba(2, 6, 23, 0.18)",
 } satisfies CSSProperties;
 
@@ -94,18 +94,10 @@ export function OverlayCardApp() {
   return (
     <div className={`flex h-full w-full items-stretch bg-transparent overlay-card-window-${presentation.dock}`}>
       <div
-        className="relative flex-1 overflow-hidden  border border-[rgba(var(--accent-rgb),0.26)] p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px]"
+        className="relative flex-1 overflow-hidden   border-[rgba(var(--accent-rgb),0.26)] p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px]"
         style={shellStyle}
       >
         <div className="grid h-full grid-rows-[auto_1fr] gap-[6px]">
-          <span className="flex items-center justify-between gap-[5px]">
-            <span className={layoutEyebrowClass} style={monoTextStyle}>Hidden apps</span>
-            <span className={`${displayStatePillClass} text-[#c7bcff]`}>
-              <span className={displayStateDotClass} aria-hidden="true" />
-              <span className={displayStateTextClass}>{appCount === 0 ? "Empty" : `${appCount} app${appCount > 1 ? "s" : ""}`}</span>
-            </span>
-          </span>
-
           <div className="flex min-w-0 flex-col">
             {rows.map((row, index) => (
               row.kind === "app" ? (

@@ -15,13 +15,13 @@ use tauri::{
 };
 use windows_sys::Win32::{
     Foundation::{GetLastError, HWND, LPARAM, LRESULT, RECT, WPARAM},
-    Graphics::Gdi::{BeginPaint, EndPaint, FillRect, GetStockObject, PAINTSTRUCT, BLACK_BRUSH},
+    Graphics::Gdi::{BeginPaint, EndPaint, FillRect, GetStockObject, BLACK_BRUSH, PAINTSTRUCT},
     System::LibraryLoader::GetModuleHandleW,
     UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, HTCLIENT, HWND_TOPMOST,
-        IsWindow, RegisterClassW, SetWindowPos, ShowWindow, SWP_NOACTIVATE, SWP_SHOWWINDOW,
-        SW_SHOWNA, WM_NCHITTEST, WM_PAINT, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_EX_TOPMOST, WS_POPUP,
+        CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, IsWindow, RegisterClassW,
+        SetWindowPos, ShowWindow, HTCLIENT, HWND_TOPMOST, MA_NOACTIVATEANDEAT, SWP_NOACTIVATE,
+        SWP_SHOWWINDOW, SW_SHOWNA, WM_MOUSEACTIVATE, WM_NCHITTEST, WM_PAINT, WNDCLASSW,
+        WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
     },
 };
 
@@ -177,7 +177,10 @@ pub fn sync_overlay_cards(
                 error!("sync_overlay_cards: {}", error);
             }
         }) {
-            error!("sync_overlay_cards: failed to schedule card update: {}", error);
+            error!(
+                "sync_overlay_cards: failed to schedule card update: {}",
+                error
+            );
         }
     });
 
@@ -242,7 +245,12 @@ fn create_or_update_overlay(display: &DisplayState) -> Result<(), String> {
     overlay_windows()
         .lock()
         .expect("overlay registry poisoned")
-        .insert(display.id.clone(), OverlayWindowRecord { hwnd: hwnd as isize });
+        .insert(
+            display.id.clone(),
+            OverlayWindowRecord {
+                hwnd: hwnd as isize,
+            },
+        );
 
     Ok(())
 }
@@ -360,6 +368,7 @@ unsafe extern "system" fn overlay_wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        WM_MOUSEACTIVATE => MA_NOACTIVATEANDEAT as LRESULT,
         WM_NCHITTEST => HTCLIENT as LRESULT,
         WM_PAINT => {
             unsafe { paint_overlay(hwnd) };
@@ -433,7 +442,8 @@ fn sync_overlay_cards_on_main_thread(
             continue;
         };
 
-        let window = create_or_update_overlay_card_window(app, display, &card_label, &presentation)?;
+        let window =
+            create_or_update_overlay_card_window(app, display, &card_label, &presentation)?;
         window
             .emit("overlay-card:update", presentation)
             .map_err(|error| error.to_string())?;
@@ -455,23 +465,29 @@ fn create_or_update_overlay_card_window(
     let size = Size::Physical(PhysicalSize::new(width, height));
 
     if let Some(window) = app.get_webview_window(card_label) {
-        window.set_position(position).map_err(|error| error.to_string())?;
+        window
+            .set_position(position)
+            .map_err(|error| error.to_string())?;
         window.set_size(size).map_err(|error| error.to_string())?;
         window.show().map_err(|error| error.to_string())?;
         return Ok(window);
     }
 
-    let window = WebviewWindowBuilder::new(app, card_label.to_string(), WebviewUrl::App("index.html".into()))
-        .transparent(true)
-        .decorations(false)
-        .resizable(false)
-        .skip_taskbar(true)
-        .always_on_top(true)
-        .visible(true)
-        .inner_size(width as f64, height as f64)
-        .position(card_rect.left as f64, card_rect.top as f64)
-        .build()
-        .map_err(|error| error.to_string())?;
+    let window = WebviewWindowBuilder::new(
+        app,
+        card_label.to_string(),
+        WebviewUrl::App("index.html".into()),
+    )
+    .transparent(true)
+    .decorations(false)
+    .resizable(false)
+    .skip_taskbar(true)
+    .always_on_top(true)
+    .visible(true)
+    .inner_size(width as f64, height as f64)
+    .position(card_rect.left as f64, card_rect.top as f64)
+    .build()
+    .map_err(|error| error.to_string())?;
 
     window.show().map_err(|error| error.to_string())?;
 
@@ -494,12 +510,15 @@ fn destroy_overlay_card_window(app: &AppHandle, card_label: &str) -> Result<(), 
 fn overlay_card_rect(display: &DisplayState, presentation: &OverlayPresentation) -> RECT {
     let client_rect = rect(0, 0, display.width as i32, display.height as i32);
     let row_count = overlay_row_count(&presentation.hidden_apps) as i32;
-    let card_inner_height =
-        CARD_PADDING_Y * 2 + CARD_HEADER_HEIGHT + row_count * CARD_ROW_HEIGHT + row_count.saturating_sub(1) * CARD_GAP;
+    let card_inner_height = CARD_PADDING_Y * 2
+        + CARD_HEADER_HEIGHT
+        + row_count * CARD_ROW_HEIGHT
+        + row_count.saturating_sub(1) * CARD_GAP;
     let outer_width = CARD_WIDTH + CARD_WINDOW_PADDING * 2;
     let outer_height = card_inner_height + CARD_WINDOW_PADDING * 2;
 
-    let local_rect = overlay_card_local_rect(&client_rect, &presentation.dock, outer_width, outer_height);
+    let local_rect =
+        overlay_card_local_rect(&client_rect, &presentation.dock, outer_width, outer_height);
 
     rect(
         display.x + local_rect.left,
@@ -509,7 +528,12 @@ fn overlay_card_rect(display: &DisplayState, presentation: &OverlayPresentation)
     )
 }
 
-fn overlay_card_local_rect(client_rect: &RECT, dock: &OverlayDock, width: i32, height: i32) -> RECT {
+fn overlay_card_local_rect(
+    client_rect: &RECT,
+    dock: &OverlayDock,
+    width: i32,
+    height: i32,
+) -> RECT {
     let horizontal_center = ((client_rect.right - width) / 2).max(CARD_MARGIN);
     let vertical_center = ((client_rect.bottom - height) / 2).max(CARD_MARGIN);
 
