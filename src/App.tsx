@@ -4,6 +4,7 @@ import appLogo from "./assets/nocturn-mark.svg";
 import packageInfo from "../package.json";
 import { DisplayLayout } from "./components/DisplayLayout";
 import { SettingsPage } from "./components/SettingsPage";
+import { Tooltip } from "./components/Tooltip";
 import { useDisplays } from "./hooks/useDisplays";
 
 type AppView = "displays" | "settings";
@@ -48,6 +49,7 @@ function App() {
     : hasHiddenDisplays
       ? `${hiddenDisplaysLabel} - double-tap Space`
       : "All displays are active";
+  const handleOpenUpdatePanel = () => {};
 
   useEffect(() => {
     const minimumSplashTimer = window.setTimeout(() => {
@@ -98,6 +100,25 @@ function App() {
         </div>
 
         <div className="titlebar-actions">
+          <Tooltip
+            side="bottom"
+            title="A new update is available"
+            description="Click to install"
+          >
+            <button
+              type="button"
+              className="toolbar-btn toolbar-btn-update"
+              onClick={handleOpenUpdatePanel}
+              aria-label="Open updates"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 4v10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                <path d="M8 10l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 18h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </button>
+          </Tooltip>
+
           <button
             type="button"
             className={`toolbar-btn ${activeView === "settings" ? "toolbar-btn-active" : ""}`}
