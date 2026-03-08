@@ -19,13 +19,15 @@
 
 ---
 
-Nocturn is a lightweight Windows tray utility for multi-monitor setups. It places a fullscreen black overlay on any display you choose — without cutting the video signal, moving your windows, or changing your desktop topology.
+Nocturn is a lightweight Windows tray utility for multi-monitor setups. It places a native fullscreen black overlay on any display you choose — without cutting the video signal, moving your windows, or changing your desktop topology.
 
-Useful at night, during focused work, or anytime a spare monitor is just extra light.
+Useful at night, during focused work, or anytime a spare monitor is just extra light. On OLED panels, the pure black blackout is OLED-friendly and keeps black pixels effectively off.
 
 ## Features
 
 - **Per-display blackout** — darken one screen or several at once with a single click.
+- **Native overlay engine** — uses native Windows overlays for instant blackout behavior.
+- **OLED-friendly blackout** — pure black overlays are ideal for OLED screens.
 - **Instant restore** — bring everything back immediately, or wake all displays at once.
 - **Safety guard** — always keeps at least one display active; the panel moves out of the way automatically.
 - **Tray-resident** — runs quietly in the system tray, opens on click.
