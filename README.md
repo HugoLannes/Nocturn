@@ -14,6 +14,10 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows" />
 </p>
 
+<p align="center">
+  <img src="src/assets/preview-1.png" alt="Nocturn preview showing the display blackout control panel" width="960" />
+</p>
+
 > Made for night setups, focus sessions, and multi-screen desks where one monitor can quickly become too much light.
 
 ## What Nocturn Is
