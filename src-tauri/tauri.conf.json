@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "RWSjGmuQDxuMYvrNlWthTO0BJ6+6yX8HeoxYZl6190oQ1Gf0h0VP4P6U",
+      "pubkey": "ZFc1MGNuVnpkR1ZrSUdOdmJXMWxiblE2SUcxcGJtbHphV2R1SUhCMVlteHBZeUJyWlhrNklEWXlPRU14UWpCR09UQTJRakZCUVRNS1VsZFRha2R0ZFZGRWVIVk5XWFp5VG14WGRHaFVUekJDU2pZck5ubFlPRWhsYjNoWldtdzJNVGt3YjFFeFIyWXdhREJXVURSUU5sVUs=",
       "endpoints": [
         "https://github.com/HugoLannes/nocturn/releases/latest/download/latest.json"
       ],
