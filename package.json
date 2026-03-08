@@ -1,8 +1,8 @@
 {
   "name": "nocturn",
   "private": true,
-  "version": "0.1.2",
-  "description": "Nocturn MVP desktop application",
+  "version": "0.1.3",
+  "description": "Nocturn desktop application",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
