@@ -41,6 +41,13 @@ function App() {
   const [displayHeadline] = useState(
     () => DISPLAY_HEADLINES[Math.floor(Math.random() * DISPLAY_HEADLINES.length)],
   );
+  const hasHiddenDisplays = blackoutCount > 0;
+  const hiddenDisplaysLabel = `${blackoutCount} hidden ${blackoutCount === 1 ? "display" : "displays"}`;
+  const wakeAllHint = isMutating
+    ? "Syncing display state..."
+    : hasHiddenDisplays
+      ? `${hiddenDisplaysLabel} - double-tap Space`
+      : "All displays are active";
 
   useEffect(() => {
     const minimumSplashTimer = window.setTimeout(() => {
@@ -160,11 +167,18 @@ function App() {
         <div className="bottom-actions">
           <button
             type="button"
-            className="wake-btn"
+            className={`wake-btn ${hasHiddenDisplays ? "wake-btn-active" : ""}`}
             onClick={() => void wakeAll()}
-            disabled={blackoutCount === 0 || isMutating}
+            disabled={!hasHiddenDisplays || isMutating}
+            aria-label="Restore all blacked-out displays"
           >
-            Wake all displays
+            <span className="wake-btn-copy">
+              <span className="wake-btn-label">Restore all displays</span>
+              <span className="wake-btn-hint">{wakeAllHint}</span>
+            </span>
+            <span className="wake-btn-badge">
+              {isMutating ? "Syncing" : hasHiddenDisplays ? hiddenDisplaysLabel : "Ready"}
+            </span>
           </button>
         </div>
       )}

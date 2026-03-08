@@ -834,33 +834,106 @@ button {
 }
 
 .bottom-actions {
-  padding: 8px 12px 10px;
+  padding: 10px 12px 12px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .wake-btn {
   width: 100%;
-  height: 36px;
-  border: 0;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02) 54%),
+    rgba(255, 255, 255, 0.028);
+  color: var(--text-primary);
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    transform 100ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
 }
 
 .wake-btn:not(:disabled):hover {
-  background: var(--accent-strong);
+  border-color: rgba(var(--accent-rgb), 0.34);
+  background:
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.16), rgba(255, 255, 255, 0.04) 54%),
+    rgba(255, 255, 255, 0.04);
   transform: translateY(-1px);
-  box-shadow: 0 4px 18px var(--accent-glow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 24px rgba(var(--accent-rgb), 0.18);
+}
+
+.wake-btn-active {
+  border-color: rgba(var(--accent-rgb), 0.28);
+  background:
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(255, 255, 255, 0.035) 54%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 24px rgba(var(--accent-rgb), 0.14);
+}
+
+.wake-btn-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.wake-btn-label {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.wake-btn-hint {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.64);
+}
+
+.wake-btn-badge {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(241, 245, 249, 0.74);
+}
+
+.wake-btn-active .wake-btn-badge {
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-rgb), 0.08));
+  color: var(--accent-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .wake-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -881,6 +954,16 @@ button {
   .focus-mode-btn {
     min-width: 0;
     width: 100%;
+  }
+
+  .wake-btn {
+    min-height: 54px;
+    padding: 11px 12px;
+    gap: 10px;
+  }
+
+  .wake-btn-badge {
+    font-size: 8px;
   }
 
   .titlebar-actions {
