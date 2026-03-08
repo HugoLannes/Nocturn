@@ -33,32 +33,29 @@ function displayStateLabel(display: Display, isPending: boolean): string {
   return "Active";
 }
 
-function displayTitle(display: Display): string {
-  if (display.isPrimary) return "Primary workspace";
-  if (display.hostsPanel) return "Nocturn panel";
-  return cleanName(display.name);
+function displayBrand(display: Display): string {
+  return display.manufacturer;
 }
 
-function displaySummary(display: Display, isLastActive: boolean, isPending: boolean): string {
-  if (isPending) return "Syncing display";
-  if (display.isBlackedOut) return "Screen hidden";
-  if (isLastActive) return "Last visible display";
-  if (!display.canBlackout) return "Reserved by Nocturn";
-  if (display.isPrimary) return "Main workspace";
-  if (display.hostsPanel) return "Hosts the app";
-  return "Ready to black out";
+function displayModel(display: Display): string {
+  return display.model;
 }
 
-function displayActionLabel(display: Display, isLastActive: boolean, isPending: boolean): string {
-  if (isPending) return "Applying...";
-  if (display.isBlackedOut) return "Restore";
-  if (isLastActive) return "Locked";
-  if (!display.canBlackout) return "Unavailable";
-  return "Black out";
+function orientationLabel(orientation: number): string | null {
+  switch (orientation) {
+    case 1: return "90°";
+    case 2: return "180°";
+    case 3: return "270°";
+    default: return null;
+  }
 }
 
 function displayMeta(display: Display): string {
-  return `${display.width}x${display.height}`;
+  const parts = [`${display.width}x${display.height}`];
+  if (display.refreshRate > 1) parts.push(`${display.refreshRate}Hz`);
+  const rotation = orientationLabel(display.orientation);
+  if (rotation) parts.push(rotation);
+  return parts.join(" · ");
 }
 
 function displayRoleTags(display: Display): string[] {
@@ -136,7 +133,6 @@ export function DisplayLayout({
             const isCompact = width < 30 || height < 42;
             const isTiny = width < 21 || height < 28;
             const stateLabel = displayStateLabel(display, isPending);
-            const actionLabel = displayActionLabel(display, isLastActive, isPending);
             const roleTags = displayRoleTags(display);
 
             return (
@@ -147,7 +143,7 @@ export function DisplayLayout({
                 style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` }}
                 onClick={() => onToggle(display.id)}
                 disabled={isDisabled}
-                aria-label={`${actionLabel} ${cleanName(display.name)} at ${display.width}x${display.height}`}
+                aria-label={`${stateLabel} ${cleanName(display.name)} at ${display.width}x${display.height}`}
                 aria-busy={isPending}
                 title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}`}
               >
@@ -159,8 +155,8 @@ export function DisplayLayout({
                   </span>
                 </span>
                 <span className="layout-display-body">
-                  <span className="layout-display-name">{displayTitle(display)}</span>
-                  <span className="layout-display-summary">{displaySummary(display, isLastActive, isPending)}</span>
+                  <span className="layout-display-name">{displayBrand(display)}</span>
+                  <span className="layout-display-summary">{displayModel(display)}</span>
                 </span>
                 <span className="layout-display-bottomline">
                   <span className="layout-display-meta">{displayMeta(display)}</span>
@@ -170,7 +166,6 @@ export function DisplayLayout({
                         {tag}
                       </span>
                     ))}
-                    <span className="layout-display-action">{actionLabel}</span>
                   </span>
                 </span>
               </button>

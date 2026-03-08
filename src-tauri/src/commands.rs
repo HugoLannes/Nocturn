@@ -118,10 +118,7 @@ pub fn unblank_all(app: AppHandle, state: State<'_, SharedState>) -> Result<(), 
 }
 
 #[command]
-pub fn focus_primary(
-    app: AppHandle,
-    state: State<'_, SharedState>,
-) -> Result<String, String> {
+pub fn focus_primary(app: AppHandle, state: State<'_, SharedState>) -> Result<String, String> {
     let started_at = Instant::now();
     info!("focus_primary: start");
     let _guard = ToggleGuard::acquire(state.inner())?;
@@ -394,11 +391,15 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
             hosts_panel: panel_display_id.as_deref() == Some(display.id.as_str()),
             id: display.id,
             name: display.name,
+            manufacturer: display.manufacturer,
+            model: display.model,
             width: display.width,
             height: display.height,
             x: display.x,
             y: display.y,
             scale_factor: display.scale_factor,
+            refresh_rate: display.refresh_rate,
+            orientation: display.orientation,
             is_primary: display.is_primary,
             is_blacked_out: display.is_blacked_out,
         })
@@ -527,9 +528,11 @@ fn refresh_displays(app: &AppHandle, state: &SharedState) -> Result<(), String> 
         .as_ref()
         .map(panel::display_id_from_monitor);
 
+    let identities = crate::monitor_info::query_monitor_identities();
+
     let next_displays = monitors
         .iter()
-        .map(|monitor| monitor_to_display_state(monitor, primary_id.as_deref()))
+        .map(|monitor| monitor_to_display_state(monitor, primary_id.as_deref(), &identities))
         .collect::<Vec<_>>();
 
     let next_ids = next_displays
@@ -592,22 +595,34 @@ fn refresh_displays(app: &AppHandle, state: &SharedState) -> Result<(), String> 
     Ok(())
 }
 
-fn monitor_to_display_state(monitor: &Monitor, primary_id: Option<&str>) -> DisplayState {
+fn monitor_to_display_state(
+    monitor: &Monitor,
+    primary_id: Option<&str>,
+    identities: &HashMap<String, crate::monitor_info::MonitorIdentity>,
+) -> DisplayState {
     let position = monitor.position();
     let size = monitor.size();
     let id = panel::display_id_from_monitor(monitor);
+    let name = monitor
+        .name()
+        .cloned()
+        .unwrap_or_else(|| format!("Display {}", position.x));
+
+    let identity = identities.get(&name).cloned().unwrap_or_default();
+    let (refresh_rate, orientation) = crate::monitor_info::query_display_settings(&name);
 
     DisplayState {
         id: id.clone(),
-        name: monitor
-            .name()
-            .cloned()
-            .unwrap_or_else(|| format!("Display {}", position.x)),
+        name,
+        manufacturer: identity.manufacturer,
+        model: identity.model,
         width: size.width,
         height: size.height,
         x: position.x,
         y: position.y,
         scale_factor: monitor.scale_factor(),
+        refresh_rate,
+        orientation,
         is_primary: primary_id == Some(id.as_str()),
         is_blacked_out: false,
     }

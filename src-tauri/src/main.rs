@@ -2,6 +2,7 @@
 
 mod commands;
 mod cursor;
+mod monitor_info;
 mod overlay;
 mod panel;
 mod settings;
