@@ -2,8 +2,19 @@ node_modules/
 dist/
 .vscode/
 .claude/
+docs/
+.env
+.env.*
+!.env.example
+!.env.sample
 
 src-tauri/target/
 src-tauri/gen/
 
 *.log
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer

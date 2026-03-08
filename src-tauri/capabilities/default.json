@@ -5,7 +5,8 @@
   "windows": ["main", "overlay-card-*"],
   "permissions": [
     "core:default",
-    "process:default",
-    "updater:default"
+    "process:allow-restart",
+    "updater:allow-check",
+    "updater:allow-download-and-install"
   ]
 }

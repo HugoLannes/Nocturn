@@ -10,6 +10,9 @@ on:
       - main
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Checks
@@ -17,19 +20,23 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: lts/*
           cache: npm
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
+        with:
+          toolchain: stable
 
       - name: Cache Rust artifacts
-        uses: swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
         with:
           workspaces: "./src-tauri -> target"
 
