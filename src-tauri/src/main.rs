@@ -6,8 +6,8 @@ mod monitor_info;
 mod overlay;
 mod panel;
 mod settings;
-mod shortcut;
 mod state;
+mod window_inventory;
 
 use std::sync::{Arc, Mutex};
 
@@ -24,12 +24,13 @@ fn main() {
 
     tauri::Builder::default()
         .manage(shared_state)
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::get_displays,
+            commands::get_overlay_card_presentation,
             commands::set_allow_cursor_exit_active_displays,
+            commands::set_show_overlay_hidden_apps,
             commands::toggle_display,
             commands::unblank_all,
             commands::focus_primary,
@@ -67,6 +68,8 @@ fn main() {
                     } = event
                     {
                         let _ = panel::show_panel(tray.app_handle());
+                        let state = tray.app_handle().state::<SharedState>();
+                        let _ = commands::refresh_display_snapshot(tray.app_handle(), state.inner());
                     }
                 })
                 .build(app)?;
@@ -74,6 +77,8 @@ fn main() {
             app.on_menu_event(|app, event| match event.id().as_ref() {
                 "show-panel" => {
                     let _ = panel::show_panel(app);
+                    let state = app.state::<SharedState>();
+                    let _ = commands::refresh_display_snapshot(app, state.inner());
                 }
                 "wake-all" => {
                     let state = app.state::<SharedState>();
