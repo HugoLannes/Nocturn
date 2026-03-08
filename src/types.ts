@@ -1,3 +1,16 @@
+export type HiddenAppSummary = {
+  appName: string;
+  windowCount: number;
+};
+
+export type OverlayDock = "top" | "right" | "bottom" | "left" | "center";
+
+export type OverlayCardPresentation = {
+  hiddenApps: HiddenAppSummary[];
+  dock: OverlayDock;
+  isEnabled: boolean;
+};
+
 export type Display = {
   id: string;
   name: string;
@@ -10,6 +23,7 @@ export type Display = {
   isBlackedOut: boolean;
   hostsPanel: boolean;
   canBlackout: boolean;
+  hiddenApps: HiddenAppSummary[];
 };
 
 export type DisplayUpdatePayload = {
@@ -17,4 +31,5 @@ export type DisplayUpdatePayload = {
   activeDisplayCount: number;
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
+  showOverlayHiddenApps: boolean;
 };
