@@ -85,14 +85,26 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure updater signing secrets are configured
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
+            echo "Missing TAURI_SIGNING_PRIVATE_KEY secret." >&2
+            exit 1
+          fi
+
       - name: Build and publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: Nocturn v__VERSION__
           releaseBody: |
-            See the assets attached to this release to install Nocturn.
-          releaseDraft: true
+            See the assets attached to this release to install or auto-update Nocturn.
+          releaseDraft: false
           prerelease: false

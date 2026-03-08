@@ -4,7 +4,9 @@ import appLogo from "./assets/nocturn-mark.svg";
 import packageInfo from "../package.json";
 import { DisplayLayout } from "./components/DisplayLayout";
 import { SettingsPage } from "./components/SettingsPage";
+import { Tooltip } from "./components/Tooltip";
 import { useDisplays } from "./hooks/useDisplays";
+import { useUpdater } from "./hooks/useUpdater";
 
 type AppView = "displays" | "settings";
 
@@ -34,6 +36,14 @@ function App() {
     setAllowCursorExitActiveDisplays,
     lastActiveDisplayId,
   } = useDisplays();
+  const {
+    isUpdateAvailable,
+    availableVersion,
+    installState,
+    downloadProgress,
+    errorMessage: updaterErrorMessage,
+    installUpdate,
+  } = useUpdater();
   const [activeView, setActiveView] = useState<AppView>("displays");
   const [showSplash, setShowSplash] = useState(true);
   const [isSplashExiting, setIsSplashExiting] = useState(false);
@@ -48,6 +58,25 @@ function App() {
     : hasHiddenDisplays
       ? `${hiddenDisplaysLabel} - double-tap Space`
       : "All displays are active";
+  const isUpdateBusy = installState === "downloading" || installState === "installing" || installState === "relaunching";
+  const shouldShowUpdateButton = isUpdateAvailable;
+
+  let updateTooltipTitle = "A new update is available";
+  let updateTooltipDescription = availableVersion ? `Click to install v${availableVersion}` : "Click to install";
+
+  if (installState === "downloading") {
+    updateTooltipTitle = "Downloading update";
+    updateTooltipDescription = downloadProgress !== null ? `${downloadProgress}% downloaded` : "Preparing the installer...";
+  } else if (installState === "installing") {
+    updateTooltipTitle = "Installing update";
+    updateTooltipDescription = "Nocturn is applying the new version.";
+  } else if (installState === "relaunching") {
+    updateTooltipTitle = "Restarting Nocturn";
+    updateTooltipDescription = "The app will relaunch automatically.";
+  } else if (installState === "error") {
+    updateTooltipTitle = "Update installation failed";
+    updateTooltipDescription = updaterErrorMessage ?? "Click to try again.";
+  }
 
   useEffect(() => {
     const minimumSplashTimer = window.setTimeout(() => {
@@ -98,6 +127,28 @@ function App() {
         </div>
 
         <div className="titlebar-actions">
+          {shouldShowUpdateButton && (
+            <Tooltip
+              side="bottom"
+              title={updateTooltipTitle}
+              description={updateTooltipDescription}
+            >
+              <button
+                type="button"
+                className={`toolbar-btn toolbar-btn-update ${isUpdateBusy ? "toolbar-btn-update-busy" : ""}`}
+                onClick={() => void installUpdate()}
+                aria-label={isUpdateBusy ? "Installing update" : "Install available update"}
+                disabled={isUpdateBusy}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 4v10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <path d="M8 10l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 18h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </button>
+            </Tooltip>
+          )}
+
           <button
             type="button"
             className={`toolbar-btn ${activeView === "settings" ? "toolbar-btn-active" : ""}`}
@@ -119,26 +170,26 @@ function App() {
           </button>
 
           <div className="titlebar-controls">
-          <button
-            type="button"
-            className="wc-btn wc-minimize"
-            onClick={() => void invoke("hide_window")}
-            aria-label="Minimize to tray"
-          >
-            <svg width="10" height="2" viewBox="0 0 10 2" fill="none" aria-hidden="true">
-              <rect width="10" height="1.5" rx="0.75" fill="currentColor" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="wc-btn wc-close"
-            onClick={() => void invoke("close_app")}
-            aria-label="Close"
-          >
-            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
-              <path d="M1 1l7 7M8 1l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
+            <button
+              type="button"
+              className="wc-btn wc-minimize"
+              onClick={() => void invoke("hide_window")}
+              aria-label="Minimize to tray"
+            >
+              <svg width="10" height="2" viewBox="0 0 10 2" fill="none" aria-hidden="true">
+                <rect width="10" height="1.5" rx="0.75" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="wc-btn wc-close"
+              onClick={() => void invoke("close_app")}
+              aria-label="Close"
+            >
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden="true">
+                <path d="M1 1l7 7M8 1l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
