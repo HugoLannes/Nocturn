@@ -3,12 +3,13 @@ use std::{collections::HashMap, path::Path, ptr};
 use windows_sys::Win32::{
     Foundation::{CloseHandle, HWND, LPARAM, RECT},
     System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+        PROCESS_QUERY_LIMITED_INFORMATION,
     },
     UI::WindowsAndMessaging::{
         EnumWindows, GetWindow, GetWindowLongPtrW, GetWindowRect, GetWindowTextLengthW,
-        GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE,
-        GW_OWNER, WS_EX_TOOLWINDOW,
+        GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE, GW_OWNER,
+        WS_EX_TOOLWINDOW,
     },
 };
 
@@ -132,10 +133,7 @@ fn inspect_window(hwnd: HWND) -> Option<WindowCandidate> {
         return None;
     }
 
-    Some(WindowCandidate {
-        app_name,
-        rect,
-    })
+    Some(WindowCandidate { app_name, rect })
 }
 
 fn read_window_title(hwnd: HWND) -> Option<String> {
@@ -162,7 +160,11 @@ fn read_window_title(hwnd: HWND) -> Option<String> {
 fn read_window_rect(hwnd: HWND) -> Option<RECT> {
     let mut rect = RECT::default();
     let result = unsafe { GetWindowRect(hwnd, &mut rect) };
-    if result == 0 { None } else { Some(rect) }
+    if result == 0 {
+        None
+    } else {
+        Some(rect)
+    }
 }
 
 fn process_app_name(hwnd: HWND) -> Option<String> {
@@ -183,12 +185,7 @@ fn process_app_name(hwnd: HWND) -> Option<String> {
     let mut buffer = vec![0u16; 32768];
     let mut length = buffer.len() as u32;
     let result = unsafe {
-        QueryFullProcessImageNameW(
-            handle,
-            PROCESS_NAME_WIN32,
-            buffer.as_mut_ptr(),
-            &mut length,
-        )
+        QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, buffer.as_mut_ptr(), &mut length)
     };
     unsafe {
         CloseHandle(handle);
@@ -199,7 +196,11 @@ fn process_app_name(hwnd: HWND) -> Option<String> {
     }
 
     let full_path = String::from_utf16_lossy(&buffer[..length as usize]);
-    let stem = Path::new(&full_path).file_stem()?.to_string_lossy().trim().to_string();
+    let stem = Path::new(&full_path)
+        .file_stem()?
+        .to_string_lossy()
+        .trim()
+        .to_string();
     if stem.is_empty() {
         None
     } else {

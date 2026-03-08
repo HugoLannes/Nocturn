@@ -7,10 +7,11 @@ use std::{
 use log::{error, info, warn};
 use tauri::{command, AppHandle, Emitter, Manager, Monitor, State};
 
- use crate::{
-     cursor, overlay, panel, settings, window_inventory,
-     state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
- };
+use crate::{
+    cursor, overlay, panel, settings,
+    state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
+    window_inventory,
+};
 
 pub type SharedState = Arc<Mutex<NocturnState>>;
 
@@ -480,7 +481,10 @@ fn build_overlay_presentations(
     hidden_apps_by_display: &HashMap<String, Vec<crate::state::HiddenAppSummary>>,
     show_overlay_hidden_apps: bool,
 ) -> HashMap<String, overlay::OverlayPresentation> {
-    let primary_display = displays.values().find(|display| display.is_primary).cloned();
+    let primary_display = displays
+        .values()
+        .find(|display| display.is_primary)
+        .cloned();
 
     displays
         .values()
