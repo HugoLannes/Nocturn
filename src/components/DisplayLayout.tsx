@@ -2,9 +2,6 @@ import type { CSSProperties } from "react";
 import type { Display } from "../types";
 import {
   cn,
-  displayStateDotClass,
-  displayStatePillClass,
-  displayStateTextClass,
   layoutEyebrowClass,
   layoutTitleClass,
   monoTextStyle,
@@ -49,26 +46,12 @@ function displayEyebrow(display: Display, index: number): string {
   return `Display ${shortLabel(display, index)}`;
 }
 
-function displayStateLabel(display: Display, isPending: boolean): string {
-  if (isPending) return "Applying";
-  if (display.isBlackedOut) return "Blacked out";
-  if (!display.canBlackout) return "Protected";
-  return "Active";
-}
-
 function displayTitle(display: Display): string {
   return display.manufacturer || display.name || "Display";
 }
 
-function displaySummary(display: Display, isLastActive: boolean, isPending: boolean): string {
-  if (isPending) return "Applying…";
-  const parts: string[] = [];
-  if (display.model) parts.push(display.model);
-  if (display.hiddenApps.length > 0) {
-    const total = display.hiddenApps.reduce((s, a) => s + a.windowCount, 0);
-    parts.push(`${total} window${total > 1 ? "s" : ""} hidden`);
-  }
-  return parts.length > 0 ? parts.join(" · ") : `${display.width}×${display.height}`;
+function displaySummary(display: Display): string {
+  return display.model || `${display.width}×${display.height}`;
 }
 
 function orientationLabel(orientation: number): string | null {
@@ -191,7 +174,6 @@ export function DisplayLayout({
             const height = (display.height / totalHeight) * 100;
             const isCompact = width < 30 || height < 42;
             const isTiny = width < 21 || height < 28;
-            const stateLabel = displayStateLabel(display, isPending);
             const roleTags = displayRoleTags(display);
             const eyebrowSizeClass = isCompact ? "text-[8px]" : "text-[9px]";
             const nameSizeClass = isTiny ? "text-[10px]" : isCompact ? "text-[11px]" : "text-[12px]";
@@ -203,7 +185,7 @@ export function DisplayLayout({
                 key={display.id}
                 type="button"
                 className={cn(
-                  "absolute grid min-h-[72px] min-w-[92px] grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] disabled:cursor-not-allowed disabled:opacity-[0.58] max-[560px]:min-h-[68px] max-[560px]:min-w-[84px] max-[560px]:p-2",
+                  "absolute grid min-h-[72px] min-w-[92px] grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] disabled:pointer-events-none disabled:opacity-[0.58] max-[560px]:min-h-[68px] max-[560px]:min-w-[84px] max-[560px]:p-2",
                   display.isBlackedOut ? "border-[rgba(248,113,113,0.2)]" : "border-[rgba(var(--accent-rgb),0.26)]",
                   isCompact && "gap-[5px] p-2",
                   isTiny && "gap-1 p-[7px]",
@@ -211,17 +193,13 @@ export function DisplayLayout({
                 style={displayCardStyle(display, isPending, left, top, width, height)}
                 onClick={() => onToggle(display.id)}
                 disabled={isDisabled}
-                aria-label={`${stateLabel} ${cleanName(display.name)} at ${display.width}x${display.height}`}
+                aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}`}
                 aria-busy={isPending}
                 title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}`}
               >
                 <span className={cn("flex items-center justify-between gap-[5px]", isTiny && "items-start")}>
                   <span className={cn(layoutEyebrowClass, eyebrowSizeClass)} style={monoTextStyle}>
                     {displayEyebrow(display, index)}
-                  </span>
-                  <span className={cn(displayStatePillClass, display.isBlackedOut ? "text-[#f5a3a3]" : "text-[#c7bcff]")}>
-                    <span className={displayStateDotClass} aria-hidden="true" />
-                    <span className={cn(displayStateTextClass, badgeSizeClass === "text-[6px]" && "text-[6px]")}>{stateLabel}</span>
                   </span>
                 </span>
                 <span className="flex min-w-0 flex-col items-start justify-center gap-1">
@@ -235,7 +213,7 @@ export function DisplayLayout({
                         isCompact ? "truncate text-[9px]" : "text-[10px] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]",
                       )}
                     >
-                      {displaySummary(display, isLastActive, isPending)}
+                      {displaySummary(display)}
                     </span>
                   ) : null}
                 </span>
@@ -260,20 +238,6 @@ export function DisplayLayout({
                         {tag}
                       </span>
                     ))}
-
-                    <span
-                      className={cn(
-                        isTiny ? "ml-0" : "ml-auto",
-                        "rounded-full border px-[7px] py-1 font-semibold uppercase tracking-[0.08em] text-[rgba(248,250,252,0.92)]",
-                        badgeSizeClass,
-                        display.isBlackedOut
-                          ? "border-[rgba(248,113,113,0.24)] bg-[rgba(248,113,113,0.12)] text-[#ffd5d5]"
-                          : "border-[rgba(var(--accent-rgb),0.36)] bg-[rgba(var(--accent-rgb),0.18)] text-[#efeaff]",
-                      )}
-                      style={monoTextStyle}
-                    >
-                      {stateLabel}
-                    </span>
                   </span>
                 </span>
               </button>
