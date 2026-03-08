@@ -6,6 +6,7 @@ type DisplayLayoutProps = {
   isMutating: boolean;
   pendingDisplayId: string | null;
   lastActiveDisplayId: string | null;
+  onFocusMode: () => void;
   onToggle: (displayId: string) => void;
 };
 
@@ -77,6 +78,7 @@ export function DisplayLayout({
   isMutating,
   pendingDisplayId,
   lastActiveDisplayId,
+  onFocusMode,
   onToggle,
 }: DisplayLayoutProps) {
   if (displays.length === 0) {
@@ -91,7 +93,12 @@ export function DisplayLayout({
   const totalHeight = Math.max(maxY - minY, 1);
   const mapAspectRatio = clamp(totalWidth / totalHeight, 1.1, 2.2);
   const activeCount = displays.filter((display) => !display.isBlackedOut).length;
-  const blackedOutCount = displays.length - activeCount;
+  const primaryDisplay = displays.find((display) => display.isPrimary) ?? null;
+  const activeSecondaryCount = displays.filter(
+    (display) => !display.isPrimary && !display.isBlackedOut,
+  ).length;
+  const focusModeActive = activeCount === 1 && primaryDisplay !== null && !primaryDisplay.isBlackedOut;
+  const canFocusMode = primaryDisplay !== null && (activeSecondaryCount > 0 || primaryDisplay.isBlackedOut);
 
   return (
     <section className="layout-panel" aria-label="Display arrangement">
@@ -101,20 +108,17 @@ export function DisplayLayout({
           <h1 className="layout-title">{headline}</h1>
         </div>
 
-        <div className="layout-summary" aria-label="Display summary">
-          <div className="layout-summary-card">
-            <span className="layout-summary-value">{displays.length}</span>
-            <span className="layout-summary-label">Detected</span>
-          </div>
-          <div className="layout-summary-card">
-            <span className="layout-summary-value">{activeCount}</span>
-            <span className="layout-summary-label">Active</span>
-          </div>
-          <div className="layout-summary-card">
-            <span className="layout-summary-value">{blackedOutCount}</span>
-            <span className="layout-summary-label">Blacked out</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          className={`focus-mode-btn ${focusModeActive ? "focus-mode-btn-active" : ""}`}
+          onClick={onFocusMode}
+          disabled={!canFocusMode || isMutating}
+          aria-pressed={focusModeActive}
+          aria-label="Enable focus mode and keep only the primary display active"
+        >
+          <span className="focus-mode-btn-label">Focus mode</span>
+          <span className="focus-mode-btn-hint">Primary only</span>
+        </button>
       </header>
 
       <div className="display-layout-frame" style={{ aspectRatio: String(mapAspectRatio) }}>
