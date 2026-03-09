@@ -87,6 +87,7 @@ function App() {
     allowCursorExitActiveDisplays,
     showOverlayHiddenApps,
     shortcutSettings,
+    resetToDefaults,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,
     setShortcutSettings,
@@ -183,13 +184,20 @@ function App() {
         data-tauri-drag-region
       >
         <div className="flex items-center gap-[10px]">
-          <img src={appLogo} alt="Nocturn logo" className="h-7 w-7 object-contain" style={titlebarLogoStyle} />
-          <span
-            className="inline-flex items-center bg-[linear-gradient(180deg,#ffffff_0%,var(--accent-soft)_100%)] bg-clip-text text-[16px] font-bold leading-none tracking-[-0.055em] text-transparent [-webkit-text-fill-color:transparent]"
-            style={titlebarNameStyle}
+          <button
+            type="button"
+            className="group flex items-center gap-[10px] rounded-[8px] border-0 bg-transparent p-0 [-webkit-app-region:no-drag] [app-region:no-drag]"
+            onClick={() => setActiveView("displays")}
+            title="Back to displays"
           >
-            Nocturn
-          </span>
+            <img src={appLogo} alt="Nocturn logo" className="h-7 w-7 object-contain transition-[filter] duration-[160ms] ease-out group-hover:[filter:drop-shadow(0_0_10px_rgba(var(--accent-rgb),0.9))_drop-shadow(0_0_22px_rgba(var(--accent-rgb),0.6))]" style={titlebarLogoStyle} />
+            <span
+              className="inline-flex items-center bg-[linear-gradient(180deg,#ffffff_0%,var(--accent-soft)_100%)] bg-clip-text text-[16px] font-bold leading-none tracking-[-0.055em] text-transparent transition-[filter] duration-[160ms] ease-out [-webkit-text-fill-color:transparent] group-hover:[filter:drop-shadow(0_0_8px_rgba(var(--accent-rgb),0.7))]"
+              style={titlebarNameStyle}
+            >
+              Nocturn
+            </span>
+          </button>
           <span className="flex items-center gap-[5px] rounded-full border border-white/6 bg-white/5 px-2 py-[3px] pl-[6px]">
             <span className="h-[5px] w-[5px] rounded-full bg-[var(--dot-on)] shadow-[0_0_6px_var(--glow-on)]" />
             <span className="whitespace-nowrap text-[11px] font-medium tracking-[0.01em] text-[var(--text-secondary)]">{appVersion}</span>
@@ -283,6 +291,7 @@ function App() {
             onUpdateShortcutSettings={setShortcutSettings}
             onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
             onToggleShowOverlayHiddenApps={(enabled) => void setShowOverlayHiddenApps(enabled)}
+            onResetToDefaults={() => void resetToDefaults()}
           />
         ) : (
           <DisplayLayout

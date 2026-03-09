@@ -225,6 +225,24 @@ export function useDisplays() {
     }
   }, [loadDisplays]);
 
+  const resetToDefaults = useCallback(async () => {
+    setIsMutating(true);
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("reset_to_defaults"),
+        "Resetting to defaults",
+      );
+
+      setState((current) => applyPayload(current, payload));
+    } catch (error) {
+      console.error("Failed to reset to defaults:", error);
+      void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
   const setShortcutSettings = useCallback(async (hotkeys: ShortcutSettingsInput) => {
     setIsMutating(true);
 
@@ -262,6 +280,7 @@ export function useDisplays() {
     toggleDisplay,
     restoreAllDisplays,
     focusPrimary,
+    resetToDefaults,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,
     setShortcutSettings,

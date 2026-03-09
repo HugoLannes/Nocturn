@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import type { Display, ShortcutSettings, ShortcutSettingsInput } from "../types";
 import { cn, layoutEyebrowClass, layoutTitleClass, monoTextStyle } from "../ui";
 import { ShortcutField } from "./ShortcutField";
@@ -12,6 +12,7 @@ type SettingsPageProps = {
   onUpdateShortcutSettings: (settings: ShortcutSettingsInput) => Promise<string | null>;
   onToggleAllowCursorExitActiveDisplays: (allowed: boolean) => void;
   onToggleShowOverlayHiddenApps: (enabled: boolean) => void;
+  onResetToDefaults: () => void;
 };
 
 type SettingsSectionProps = {
@@ -126,8 +127,29 @@ export function SettingsPage({
   onUpdateShortcutSettings,
   onToggleAllowCursorExitActiveDisplays,
   onToggleShowOverlayHiddenApps,
+  onResetToDefaults,
 }: SettingsPageProps) {
   const unavailableBindings = shortcutSettings.displayBindings.filter((binding) => !binding.isAvailable);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    };
+  }, []);
+
+  function handleResetClick() {
+    if (!isConfirming) {
+      setIsConfirming(true);
+      confirmTimerRef.current = setTimeout(() => setIsConfirming(false), 3000);
+      return;
+    }
+
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setIsConfirming(false);
+    onResetToDefaults();
+  }
 
   async function updateShortcutSettings(mutator: (draft: ShortcutSettingsInput) => void) {
     const nextSettings = toShortcutSettingsInput(shortcutSettings);
@@ -137,9 +159,24 @@ export function SettingsPage({
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3" aria-label="Settings">
-      <header className="shrink-0 px-[2px] pt-[2px]">
-        <span className={layoutEyebrowClass} style={monoTextStyle}>Settings</span>
-        <h1 className={layoutTitleClass}>Set things your way.</h1>
+      <header className="flex shrink-0 items-end justify-between px-[2px] pt-[2px]">
+        <div>
+          <span className={layoutEyebrowClass} style={monoTextStyle}>Settings</span>
+          <h1 className={layoutTitleClass}>Set things your way.</h1>
+        </div>
+        <button
+          type="button"
+          className={cn(
+            "mb-[2px] rounded-[8px] border px-2.5 py-[4px] text-[11px] font-medium tracking-[-0.01em] transition-all duration-[140ms] ease-out disabled:cursor-not-allowed disabled:opacity-50",
+            isConfirming
+              ? "border-red-500/30 bg-red-500/10 text-red-400 hover:border-red-500/50 hover:bg-red-500/20"
+              : "border-white/8 bg-white/[0.03] text-[rgba(226,232,240,0.48)] hover:border-white/12 hover:bg-white/[0.06] hover:text-[rgba(226,232,240,0.68)]",
+          )}
+          disabled={isMutating}
+          onClick={handleResetClick}
+        >
+          {isConfirming ? "Confirm" : "Reset to defaults"}
+        </button>
       </header>
 
       <div className="nocturn-scrollbar min-h-0 flex-1 overflow-y-auto px-[2px] pb-[6px] pr-1.5 pt-[2px] max-[560px]:pr-0.5">

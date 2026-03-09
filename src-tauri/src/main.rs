@@ -41,6 +41,7 @@ fn main() {
             commands::set_allow_cursor_exit_active_displays,
             commands::set_show_overlay_hidden_apps,
             commands::set_shortcut_settings,
+            commands::reset_to_defaults,
             commands::toggle_display,
             commands::unblank_all,
             commands::focus_primary,

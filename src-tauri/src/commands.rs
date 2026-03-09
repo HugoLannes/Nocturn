@@ -148,6 +148,48 @@ pub fn set_shortcut_settings(
 }
 
 #[command]
+pub fn reset_to_defaults(
+    app: AppHandle,
+    state: State<'_, SharedState>,
+) -> Result<DisplayUpdatePayload, String> {
+    ensure_displays_loaded(&app, state.inner())?;
+
+    let previous_settings = {
+        let state = state.lock().expect("state poisoned");
+        state.settings.clone()
+    };
+
+    let mut next_settings = settings::AppSettings::default();
+    next_settings.shortcut_defaults_initialized = false;
+
+    {
+        let mut state = state.lock().expect("state poisoned");
+        state.settings = next_settings;
+    }
+
+    let _ = shortcuts::ensure_default_shortcuts(&app, state.inner())?;
+
+    let current_settings = {
+        let state = state.lock().expect("state poisoned");
+        state.settings.clone()
+    };
+
+    if let Err(error) = shortcuts::sync_registered_shortcuts(&app, state.inner()) {
+        restore_previous_settings(&app, state.inner(), &previous_settings);
+        return Err(error);
+    }
+
+    if let Err(error) = settings::save_settings(&app, &current_settings) {
+        restore_previous_settings(&app, state.inner(), &previous_settings);
+        return Err(error);
+    }
+
+    sync_runtime_behaviors(state.inner());
+    emit_displays_update(&app, state.inner())?;
+    build_payload(&app, state.inner())
+}
+
+#[command]
 pub fn toggle_display(
     app: AppHandle,
     state: State<'_, SharedState>,
