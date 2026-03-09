@@ -11,11 +11,32 @@ export type OverlayCardPresentation = {
   isEnabled: boolean;
 };
 
+export type DisplayShortcutBinding = {
+  displayKey: string;
+  displayLabel: string;
+  accelerator: string;
+};
+
+export type DisplayShortcutBindingInfo = DisplayShortcutBinding & {
+  isAvailable: boolean;
+};
+
+export type ShortcutSettings = {
+  focusModeHotkey: string | null;
+  displayBindings: DisplayShortcutBindingInfo[];
+};
+
+export type ShortcutSettingsInput = {
+  focusModeHotkey: string | null;
+  displayBindings: DisplayShortcutBinding[];
+};
+
 export type Display = {
   id: string;
   name: string;
   manufacturer: string;
   model: string;
+  persistentKey: string;
   width: number;
   height: number;
   x: number;
@@ -27,6 +48,7 @@ export type Display = {
   isBlackedOut: boolean;
   hostsPanel: boolean;
   canBlackout: boolean;
+  hotkey: string | null;
   hiddenApps: HiddenAppSummary[];
 };
 
@@ -36,4 +58,5 @@ export type DisplayUpdatePayload = {
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
   showOverlayHiddenApps: boolean;
+  shortcutSettings: ShortcutSettings;
 };

@@ -74,7 +74,7 @@ function wakeButtonClass(isActive: boolean) {
 }
 
 function App() {
-  const appVersion = `v${packageInfo.version}`;
+  const appVersion = packageInfo.version;
   const {
     displays,
     isLoading,
@@ -86,8 +86,11 @@ function App() {
     focusPrimary,
     allowCursorExitActiveDisplays,
     showOverlayHiddenApps,
+    shortcutSettings,
+    resetToDefaults,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,
+    setShortcutSettings,
     lastActiveDisplayId,
   } = useDisplays();
   const {
@@ -177,20 +180,29 @@ function App() {
       )}
 
       <header
-        className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--border)] pl-[14px] pr-[10px] [-webkit-app-region:drag] [app-region:drag]"
+        className="flex h-11 shrink-0 select-none items-center justify-between border-b border-[var(--border)] pl-[14px] pr-[10px] [-webkit-app-region:drag] [app-region:drag]"
         data-tauri-drag-region
       >
         <div className="flex items-center gap-[10px]">
-          <img src={appLogo} alt="Nocturn logo" className="h-7 w-7 object-contain" style={titlebarLogoStyle} />
-          <span
-            className="inline-flex items-center bg-[linear-gradient(180deg,#ffffff_0%,var(--accent-soft)_100%)] bg-clip-text text-[16px] font-bold leading-none tracking-[-0.055em] text-transparent [-webkit-text-fill-color:transparent]"
-            style={titlebarNameStyle}
+          <button
+            type="button"
+            className="group flex items-center gap-[10px] rounded-[8px] border-0 bg-transparent p-0 [-webkit-app-region:no-drag] [app-region:no-drag]"
+            onClick={() => setActiveView("displays")}
+            title="Back to displays"
           >
-            Nocturn
-          </span>
-          <span className="flex items-center gap-[5px] rounded-full border border-white/6 bg-white/5 px-2 py-[3px] pl-[6px]">
-            <span className="h-[5px] w-[5px] rounded-full bg-[var(--dot-on)] shadow-[0_0_6px_var(--glow-on)]" />
-            <span className="whitespace-nowrap text-[11px] font-medium tracking-[0.01em] text-[var(--text-secondary)]">{appVersion}</span>
+            <img src={appLogo} alt="Nocturn logo" className="h-7 w-7 object-contain transition-[filter] duration-[160ms] ease-out group-hover:[filter:drop-shadow(0_0_10px_rgba(var(--accent-rgb),0.9))_drop-shadow(0_0_22px_rgba(var(--accent-rgb),0.6))]" style={titlebarLogoStyle} />
+            <span
+              className="inline-flex items-center bg-[linear-gradient(180deg,#ffffff_0%,var(--accent-soft)_100%)] bg-clip-text text-[17px] font-bold leading-none tracking-[-0.055em] text-transparent transition-[filter] duration-[160ms] ease-out [-webkit-text-fill-color:transparent] group-hover:[filter:drop-shadow(0_0_8px_rgba(var(--accent-rgb),0.7))] max-[560px]:text-[16px]"
+              style={titlebarNameStyle}
+            >
+              Nocturn
+            </span>
+          </button>
+          <span
+            className="whitespace-nowrap self-end pb-[2px] text-[11px] font-medium tracking-[0.04em] text-[rgba(241,245,249,0.72)]"
+            style={monoTextStyle}
+          >
+            {appVersion}
           </span>
         </div>
 
@@ -273,11 +285,15 @@ function App() {
       <main className="min-h-0 flex-1 overflow-hidden px-4 pb-3 pt-[14px] max-[560px]:px-3 max-[560px]:pb-[10px] max-[560px]:pt-3">
         {activeView === "settings" ? (
           <SettingsPage
+            displays={displays}
+            shortcutSettings={shortcutSettings}
             allowCursorExitActiveDisplays={allowCursorExitActiveDisplays}
             showOverlayHiddenApps={showOverlayHiddenApps}
             isMutating={isMutating}
+            onUpdateShortcutSettings={setShortcutSettings}
             onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
             onToggleShowOverlayHiddenApps={(enabled) => void setShowOverlayHiddenApps(enabled)}
+            onResetToDefaults={() => void resetToDefaults()}
           />
         ) : (
           <DisplayLayout
@@ -286,6 +302,7 @@ function App() {
             isMutating={isMutating}
             pendingDisplayIds={pendingDisplayIds}
             lastActiveDisplayId={lastActiveDisplayId}
+            focusModeHotkey={shortcutSettings.focusModeHotkey}
             onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
           />

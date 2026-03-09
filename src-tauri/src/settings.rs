@@ -3,11 +3,28 @@ use std::{fs, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DisplayHotkeyBinding {
+    pub display_key: String,
+    pub display_label: String,
+    pub accelerator: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ShortcutSettings {
+    pub focus_mode_hotkey: Option<String>,
+    pub display_bindings: Vec<DisplayHotkeyBinding>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct AppSettings {
     pub allow_cursor_exit_active_displays: bool,
     pub show_overlay_hidden_apps: bool,
+    pub shortcut_settings: ShortcutSettings,
+    pub shortcut_defaults_initialized: bool,
 }
 
 impl Default for AppSettings {
@@ -15,6 +32,8 @@ impl Default for AppSettings {
         Self {
             allow_cursor_exit_active_displays: true,
             show_overlay_hidden_apps: true,
+            shortcut_settings: ShortcutSettings::default(),
+            shortcut_defaults_initialized: false,
         }
     }
 }

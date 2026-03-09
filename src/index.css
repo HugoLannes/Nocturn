@@ -4,6 +4,7 @@
   --bg: #0d0d12;
   --surface: rgba(255, 255, 255, 0.04);
   --surface-hover: rgba(255, 255, 255, 0.065);
+  --surface-strong: rgba(255, 255, 255, 0.075);
   --border: rgba(255, 255, 255, 0.07);
   --border-on: rgba(52, 211, 153, 0.28);
   --border-off: rgba(239, 68, 68, 0.26);
@@ -18,6 +19,8 @@
   --accent-strong: #9d90ff;
   --accent-soft: #d9d2ff;
   --accent-glow: rgba(var(--accent-rgb), 0.35);
+  --scroll-track: rgba(255, 255, 255, 0.04);
+  --scroll-thumb: rgba(var(--accent-rgb), 0.38);
 }
 
 html,
@@ -40,6 +43,40 @@ button {
 
 button:enabled {
   cursor: pointer;
+}
+
+.nocturn-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+.nocturn-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.nocturn-scrollbar::-webkit-scrollbar-track {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scroll-track);
+  background-clip: padding-box;
+}
+
+.nocturn-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0.26));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+  background-clip: padding-box;
+}
+
+.nocturn-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.72), rgba(var(--accent-rgb), 0.34));
+  background-clip: padding-box;
+}
+
+.nocturn-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @keyframes blink {

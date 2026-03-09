@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Display, DisplayUpdatePayload } from "../types";
+import type { Display, DisplayUpdatePayload, ShortcutSettings, ShortcutSettingsInput } from "../types";
 
 type UseDisplaysState = {
   displays: Display[];
@@ -10,6 +10,12 @@ type UseDisplaysState = {
   blackoutCount: number;
   allowCursorExitActiveDisplays: boolean;
   showOverlayHiddenApps: boolean;
+  shortcutSettings: ShortcutSettings;
+};
+
+const EMPTY_SHORTCUT_SETTINGS: ShortcutSettings = {
+  focusModeHotkey: null,
+  displayBindings: [],
 };
 
 const INITIAL_STATE: UseDisplaysState = {
@@ -19,6 +25,7 @@ const INITIAL_STATE: UseDisplaysState = {
   blackoutCount: 0,
   allowCursorExitActiveDisplays: true,
   showOverlayHiddenApps: true,
+  shortcutSettings: EMPTY_SHORTCUT_SETTINGS,
 };
 
 const COMMAND_TIMEOUT_MS = 5000;
@@ -42,6 +49,31 @@ function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = COMMAND_
   });
 }
 
+function applyPayload(current: UseDisplaysState, payload: DisplayUpdatePayload): UseDisplaysState {
+  return {
+    ...current,
+    displays: payload.displays,
+    activeDisplayCount: payload.activeDisplayCount,
+    blackoutCount: payload.blackoutCount,
+    allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
+    showOverlayHiddenApps: payload.showOverlayHiddenApps,
+    shortcutSettings: payload.shortcutSettings,
+    isLoading: false,
+  };
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "Unknown error.";
+}
+
 export function useDisplays() {
   const [state, setState] = useState<UseDisplaysState>(INITIAL_STATE);
   const [isMutating, setIsMutating] = useState(false);
@@ -50,15 +82,7 @@ export function useDisplays() {
   const loadDisplays = useCallback(async () => {
     try {
       const payload = await withTimeout(invoke<DisplayUpdatePayload>("get_displays"), "Loading displays");
-      setState((current) => ({
-        ...current,
-        displays: payload.displays,
-        activeDisplayCount: payload.activeDisplayCount,
-        blackoutCount: payload.blackoutCount,
-        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
-        showOverlayHiddenApps: payload.showOverlayHiddenApps,
-        isLoading: false,
-      }));
+      setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to load displays:", error);
       setState((current) => ({
@@ -74,15 +98,7 @@ export function useDisplays() {
     void loadDisplays();
 
     void listen<DisplayUpdatePayload>("displays-update", (event) => {
-      setState((current) => ({
-        ...current,
-        displays: event.payload.displays,
-        activeDisplayCount: event.payload.activeDisplayCount,
-        blackoutCount: event.payload.blackoutCount,
-        allowCursorExitActiveDisplays: event.payload.allowCursorExitActiveDisplays,
-        showOverlayHiddenApps: event.payload.showOverlayHiddenApps,
-        isLoading: false,
-      }));
+      setState((current) => applyPayload(current, event.payload));
     }).then((cleanup) => {
       unlisten = cleanup;
     });
@@ -182,13 +198,7 @@ export function useDisplays() {
         "Updating cursor setting",
       );
 
-      setState((current) => ({
-        ...current,
-        displays: payload.displays,
-        activeDisplayCount: payload.activeDisplayCount,
-        blackoutCount: payload.blackoutCount,
-        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
-      }));
+      setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to update cursor setting:", error);
       void loadDisplays();
@@ -206,17 +216,48 @@ export function useDisplays() {
         "Updating overlay app labels",
       );
 
-      setState((current) => ({
-        ...current,
-        displays: payload.displays,
-        activeDisplayCount: payload.activeDisplayCount,
-        blackoutCount: payload.blackoutCount,
-        allowCursorExitActiveDisplays: payload.allowCursorExitActiveDisplays,
-        showOverlayHiddenApps: payload.showOverlayHiddenApps,
-      }));
+      setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to update overlay app labels:", error);
       void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
+  const resetToDefaults = useCallback(async () => {
+    setIsMutating(true);
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("reset_to_defaults"),
+        "Resetting to defaults",
+      );
+
+      setState((current) => applyPayload(current, payload));
+    } catch (error) {
+      console.error("Failed to reset to defaults:", error);
+      void loadDisplays();
+    } finally {
+      setIsMutating(false);
+    }
+  }, [loadDisplays]);
+
+  const setShortcutSettings = useCallback(async (hotkeys: ShortcutSettingsInput) => {
+    setIsMutating(true);
+
+    try {
+      const payload = await withTimeout(
+        invoke<DisplayUpdatePayload>("set_shortcut_settings", { hotkeys }),
+        "Updating shortcut settings",
+      );
+
+      setState((current) => applyPayload(current, payload));
+      return null;
+    } catch (error) {
+      console.error("Failed to update shortcut settings:", error);
+      void loadDisplays();
+      return getErrorMessage(error);
     } finally {
       setIsMutating(false);
     }
@@ -239,8 +280,10 @@ export function useDisplays() {
     toggleDisplay,
     restoreAllDisplays,
     focusPrimary,
+    resetToDefaults,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,
+    setShortcutSettings,
     lastActiveDisplayId,
   };
 }
