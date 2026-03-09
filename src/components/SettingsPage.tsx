@@ -35,6 +35,15 @@ const rowClass = "flex items-center justify-between gap-4 py-2.5 max-[560px]:py-
 const dividerClass = "border-t border-white/[0.065]";
 const groupLabelClass = "inline-block pt-2.5 pb-1 text-[11px] uppercase tracking-[0.08em] text-[rgba(226,232,240,0.44)]";
 
+function resetButtonClass(isConfirming: boolean) {
+  return cn(
+    "relative mb-[2px] inline-flex items-center justify-center whitespace-nowrap rounded-[14px] border px-[12px] py-[5px] text-[13px] font-semibold leading-[1.05] tracking-[-0.03em] transition-[border-color,background,color,box-shadow,transform,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 max-[560px]:rounded-[12px] max-[560px]:px-3 max-[560px]:py-[4px] max-[560px]:text-[12px]",
+    isConfirming
+      ? "border-[rgba(248,113,113,0.32)] text-[rgba(255,228,230,0.96)] [background:linear-gradient(180deg,rgba(248,113,113,0.22),rgba(248,113,113,0.08)_58%),rgba(255,255,255,0.04)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_28px_rgba(127,29,29,0.22)] enabled:hover:border-[rgba(248,113,113,0.42)] enabled:hover:[background:linear-gradient(180deg,rgba(248,113,113,0.28),rgba(248,113,113,0.12)_58%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_24px_rgba(127,29,29,0.2)]"
+      : "border-white/10 text-[rgba(226,232,240,0.6)] [background:linear-gradient(180deg,rgba(var(--accent-rgb),0.14),rgba(255,255,255,0.03)_46%),rgba(255,255,255,0.03)] enabled:hover:border-[rgba(var(--accent-rgb),0.34)] enabled:hover:text-[rgba(226,232,240,0.78)] enabled:hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.2),rgba(255,255,255,0.04)_46%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(var(--accent-rgb),0.18)]",
+  );
+}
+
 function displayShortcutTitle(display: Display, index: number) {
   const match = display.name.match(/DISPLAY(\d+)/i);
   if (match) {
@@ -131,6 +140,7 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const unavailableBindings = shortcutSettings.displayBindings.filter((binding) => !binding.isAvailable);
   const [isConfirming, setIsConfirming] = useState(false);
+  const resetButtonRef = useRef<HTMLButtonElement | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -139,14 +149,52 @@ export function SettingsPage({
     };
   }, []);
 
-  function handleResetClick() {
+  useEffect(() => {
     if (!isConfirming) {
-      setIsConfirming(true);
-      confirmTimerRef.current = setTimeout(() => setIsConfirming(false), 3000);
       return;
     }
 
-    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && resetButtonRef.current?.contains(event.target)) {
+        return;
+      }
+
+      if (confirmTimerRef.current) {
+        clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = undefined;
+      }
+
+      setIsConfirming(false);
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isConfirming]);
+
+  function handleResetClick() {
+    if (!isConfirming) {
+      setIsConfirming(true);
+
+      if (confirmTimerRef.current) {
+        clearTimeout(confirmTimerRef.current);
+      }
+
+      confirmTimerRef.current = setTimeout(() => {
+        confirmTimerRef.current = undefined;
+        setIsConfirming(false);
+      }, 3000);
+
+      return;
+    }
+
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = undefined;
+    }
+
     setIsConfirming(false);
     onResetToDefaults();
   }
@@ -165,17 +213,17 @@ export function SettingsPage({
           <h1 className={layoutTitleClass}>Set things your way.</h1>
         </div>
         <button
+          ref={resetButtonRef}
           type="button"
-          className={cn(
-            "mb-[2px] rounded-[8px] border px-2.5 py-[4px] text-[11px] font-medium tracking-[-0.01em] transition-all duration-[140ms] ease-out disabled:cursor-not-allowed disabled:opacity-50",
-            isConfirming
-              ? "border-red-500/30 bg-red-500/10 text-red-400 hover:border-red-500/50 hover:bg-red-500/20"
-              : "border-white/8 bg-white/[0.03] text-[rgba(226,232,240,0.48)] hover:border-white/12 hover:bg-white/[0.06] hover:text-[rgba(226,232,240,0.68)]",
-          )}
+          className={resetButtonClass(isConfirming)}
           disabled={isMutating}
           onClick={handleResetClick}
+          aria-label={isConfirming ? "Confirm reset to default settings" : "Reset settings to defaults"}
         >
-          {isConfirming ? "Confirm" : "Reset to defaults"}
+          <span className="invisible" aria-hidden="true">Restore default</span>
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-mono text-[13px]" aria-hidden="true">
+            {isConfirming ? "Confirm" : "Restore default"}
+          </span>
         </button>
       </header>
 
