@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { buildAcceleratorFromKeyboardEvent, isModifierKey } from "../shortcuts";
+import { useEffect, useRef, useState } from "react";
+import { buildAcceleratorFromHeldCodes, isModifierCode } from "../shortcuts";
 import { cn, monoTextStyle } from "../ui";
 import { ShortcutKeycaps } from "./ShortcutKeycaps";
 
@@ -21,10 +21,16 @@ export function ShortcutField({
   onSubmit,
 }: ShortcutFieldProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const heldCodes = useRef(new Set<string>());
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<"idle" | "saved">("idle");
+  const isSavingRef = useRef(false);
+
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+  }, [isSaving]);
 
   useEffect(() => {
     if (isCapturing) {
@@ -47,6 +53,60 @@ export function ShortcutField({
 
     return () => window.clearTimeout(timer);
   }, [feedbackState]);
+
+  // Track held keys at the window level so modifier state is always accurate,
+  // even when Chromium/WebView2 misreports event.ctrlKey on certain layouts.
+  useEffect(() => {
+    if (!isCapturing) {
+      heldCodes.current.clear();
+      return;
+    }
+
+    // Delay modifier keyup removal by a short window. Windows sends a
+    // synthetic Shift keyup right before numpad keydown when NumLock is on,
+    // which would otherwise cause heldCodes to lose Shift before we read it.
+    const pendingRemovals = new Map<string, number>();
+
+    function onKeyDown(event: KeyboardEvent) {
+      const pending = pendingRemovals.get(event.code);
+      if (pending !== undefined) {
+        window.clearTimeout(pending);
+        pendingRemovals.delete(event.code);
+      }
+      heldCodes.current.add(event.code);
+    }
+
+    function onKeyUp(event: KeyboardEvent) {
+      if (isModifierCode(event.code)) {
+        const timer = window.setTimeout(() => {
+          heldCodes.current.delete(event.code);
+          pendingRemovals.delete(event.code);
+        }, 50);
+        pendingRemovals.set(event.code, timer);
+      } else {
+        heldCodes.current.delete(event.code);
+      }
+    }
+
+    function onWindowBlur() {
+      for (const timer of pendingRemovals.values()) window.clearTimeout(timer);
+      pendingRemovals.clear();
+      heldCodes.current.clear();
+    }
+
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("blur", onWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("blur", onWindowBlur);
+      for (const timer of pendingRemovals.values()) window.clearTimeout(timer);
+      pendingRemovals.clear();
+      heldCodes.current.clear();
+    };
+  }, [isCapturing]);
 
   async function submitShortcut(accelerator: string | null) {
     setIsSaving(true);
@@ -75,8 +135,8 @@ export function ShortcutField({
     setIsCapturing(true);
   }
 
-  async function handleKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
-    if (!isCapturing || disabled || isSaving) {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (!isCapturing || disabled || isSavingRef.current) {
       return;
     }
 
@@ -89,28 +149,32 @@ export function ShortcutField({
       return;
     }
 
+    // Allow bare Backspace/Delete to clear the shortcut (check held codes
+    // for modifiers instead of event flags, consistent with the rest).
     if (
       (event.key === "Backspace" || event.key === "Delete")
-      && !event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
+      && !heldCodes.current.has("AltLeft") && !heldCodes.current.has("AltRight")
+      && !heldCodes.current.has("ControlLeft") && !heldCodes.current.has("ControlRight")
+      && !heldCodes.current.has("MetaLeft") && !heldCodes.current.has("MetaRight")
+      && !heldCodes.current.has("ShiftLeft") && !heldCodes.current.has("ShiftRight")
     ) {
-      await submitShortcut(null);
+      void submitShortcut(null);
       return;
     }
 
-    if (isModifierKey(event.key)) {
+    if (isModifierCode(event.nativeEvent.code)) {
       return;
     }
 
-    const accelerator = buildAcceleratorFromKeyboardEvent(event.nativeEvent);
+    // Build accelerator by merging manually tracked modifier state with
+    // event flags — covers both AZERTY and NumLock+Shift edge cases.
+    const accelerator = buildAcceleratorFromHeldCodes(heldCodes.current, event.nativeEvent);
     if (!accelerator) {
       setErrorMessage("Use at least one modifier key.");
       return;
     }
 
-    await submitShortcut(accelerator);
+    void submitShortcut(accelerator);
   }
 
   const isDisabled = disabled || isSaving;
@@ -148,9 +212,9 @@ export function ShortcutField({
               ref={triggerRef}
               type="button"
               className="sr-only"
-              onKeyDown={(event) => void handleKeyDown(event)}
+              onKeyDown={handleKeyDown}
               onBlur={() => {
-                if (!isSaving) {
+                if (!isSavingRef.current) {
                   setIsCapturing(false);
                 }
               }}

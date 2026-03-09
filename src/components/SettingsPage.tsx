@@ -146,8 +146,8 @@ export function SettingsPage({
         <div className="flex flex-col gap-3">
           <SettingsSection eyebrow="General" title="Display and cursor">
             <SettingsToggleRow
-              title="Show app names on overlays"
-              hint="Display detected app names behind blackout overlays."
+              title="Show hidden apps on overlays"
+              hint="Display apps opened behind blackout overlays."
               ariaLabel="Show hidden apps on blackout overlays"
               enabled={showOverlayHiddenApps}
               disabled={isMutating}

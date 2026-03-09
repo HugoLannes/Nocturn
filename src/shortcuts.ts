@@ -92,21 +92,45 @@ const TOKEN_LABELS: Record<string, string> = {
   up: "Up",
 };
 
+const MODIFIER_CODES: ReadonlySet<string> = new Set([
+  "ControlLeft", "ControlRight",
+  "AltLeft", "AltRight",
+  "ShiftLeft", "ShiftRight",
+  "MetaLeft", "MetaRight",
+]);
+
+export function isModifierCode(code: string) {
+  return MODIFIER_CODES.has(code);
+}
+
 export function isModifierKey(key: string) {
   return key === "Alt" || key === "Control" || key === "Meta" || key === "Shift";
 }
 
-export function buildAcceleratorFromKeyboardEvent(event: KeyboardEvent): string | null {
+/**
+ * Build an accelerator string by merging two sources of modifier state:
+ *
+ * 1. `heldCodes` — physical key codes tracked via keydown/keyup on window.
+ *    Fixes Chromium/WebView2 misreporting event.ctrlKey on non-US layouts
+ *    (e.g. AZERTY Ctrl+Shift+digit loses Ctrl).
+ *
+ * 2. `event` — the native KeyboardEvent modifier flags.
+ *    Fixes Windows sending a synthetic Shift keyup before numpad keys when
+ *    NumLock is on, which causes heldCodes to lose Shift prematurely.
+ *
+ * A modifier is included if EITHER source reports it as held.
+ */
+export function buildAcceleratorFromHeldCodes(heldCodes: ReadonlySet<string>, event: KeyboardEvent): string | null {
   const key = keyLabelFromCode(event.code);
   if (!key) {
     return null;
   }
 
   const modifiers = [
-    event.ctrlKey ? "Ctrl" : null,
-    event.altKey ? "Alt" : null,
-    event.shiftKey ? "Shift" : null,
-    event.metaKey ? "Super" : null,
+    (event.ctrlKey || heldCodes.has("ControlLeft") || heldCodes.has("ControlRight")) ? "Ctrl" : null,
+    (event.altKey || heldCodes.has("AltLeft") || heldCodes.has("AltRight")) ? "Alt" : null,
+    (event.shiftKey || heldCodes.has("ShiftLeft") || heldCodes.has("ShiftRight")) ? "Shift" : null,
+    (event.metaKey || heldCodes.has("MetaLeft") || heldCodes.has("MetaRight")) ? "Super" : null,
   ].filter((value): value is string => value !== null);
 
   if (modifiers.length === 0) {
@@ -120,15 +144,24 @@ export function formatShortcutForDisplay(accelerator: string | null | undefined)
   return formatShortcutTokensForDisplay(accelerator).join("+");
 }
 
+const MODIFIER_ORDER: Record<string, number> = { Ctrl: 0, Alt: 1, Shift: 2, Super: 3 };
+
 export function formatShortcutTokensForDisplay(accelerator: string | null | undefined) {
   if (!accelerator) {
     return [];
   }
 
-  return accelerator
+  const tokens = accelerator
     .split("+")
     .map((token) => formatToken(token))
     .filter((token): token is string => Boolean(token));
+
+  // Sort modifiers into canonical order (Ctrl, Alt, Shift, Super) while keeping
+  // the main key last. The backend may re-serialize in a different order.
+  const modifiers = tokens.filter((token) => token in MODIFIER_ORDER);
+  const keys = tokens.filter((token) => !(token in MODIFIER_ORDER));
+  modifiers.sort((a, b) => MODIFIER_ORDER[a] - MODIFIER_ORDER[b]);
+  return [...modifiers, ...keys];
 }
 
 function keyLabelFromCode(code: string): string | null {
