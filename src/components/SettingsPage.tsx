@@ -27,13 +27,19 @@ const settingsCardClass = "rounded-[18px] border border-[var(--border)] px-[18px
 const settingsRowClass = "flex items-center justify-between gap-[22px] border-t border-white/6 pt-4 max-[560px]:flex-col max-[560px]:items-stretch max-[560px]:gap-[14px] max-[560px]:pt-[14px]";
 
 function displayShortcutTitle(display: Display, index: number) {
+  const match = display.name.match(/DISPLAY(\d+)/i);
+  if (match) {
+    return `Display ${match[1]}`;
+  }
+
   return display.isPrimary ? "Primary display" : `Display ${index + 1}`;
 }
 
 function displayShortcutHint(display: Display) {
   const descriptor = [display.manufacturer, display.model].filter(Boolean).join(" ");
   const meta = `${display.width}x${display.height}`;
-  return descriptor ? `${descriptor} · ${meta}` : meta;
+  const details = descriptor ? `${descriptor} · ${meta}` : meta;
+  return display.isPrimary ? `Primary · ${details}` : details;
 }
 
 function toShortcutSettingsInput(shortcutSettings: ShortcutSettings): ShortcutSettingsInput {

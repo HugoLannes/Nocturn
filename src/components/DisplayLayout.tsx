@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { formatShortcutForDisplay } from "../shortcuts";
 import type { Display } from "../types";
+import { ShortcutKeycaps } from "./ShortcutKeycaps";
 import {
   cn,
   layoutEyebrowClass,
@@ -154,8 +155,11 @@ export function DisplayLayout({
           aria-label="Enable focus mode and keep only the primary display active"
         >
           <span className="text-[14px] font-semibold leading-[1.05] tracking-[-0.03em]">Focus mode</span>
-          <span className="text-[10px] uppercase leading-[1.2] tracking-[0.08em] text-[rgba(226,232,240,0.64)]" style={monoTextStyle}>
-            {focusModeHotkey ? `Primary only · ${formatShortcutForDisplay(focusModeHotkey)}` : "Primary only"}
+          <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
+            <span className="text-[10px] uppercase leading-[1.2] tracking-[0.08em] text-[rgba(226,232,240,0.64)]" style={monoTextStyle}>
+              Primary only
+            </span>
+            <ShortcutKeycaps accelerator={focusModeHotkey} size="sm" />
           </span>
         </button>
       </header>
@@ -170,6 +174,7 @@ export function DisplayLayout({
           {displays.map((display, index) => {
             const isLastActive = lastActiveDisplayId === display.id && !display.isBlackedOut;
             const isPending = pendingDisplayIds.has(display.id);
+            const shortcutLabel = formatShortcutForDisplay(display.hotkey);
             // isMutating is only true during global ops (focus mode, restore all).
             // Individual card toggles use per-card isPending so other cards stay interactive.
             const isDisabled = isMutating || isPending || isLastActive || !display.canBlackout;
@@ -202,9 +207,9 @@ export function DisplayLayout({
                 style={displayCardStyle(display, isPending, left, top, width, height)}
                 onClick={() => onToggle(display.id)}
                 disabled={isDisabled}
-                aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}`}
+                aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}${shortcutLabel ? `, shortcut ${shortcutLabel}` : ""}`}
                 aria-busy={isPending}
-                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}${display.hotkey ? ` • ${formatShortcutForDisplay(display.hotkey)}` : ""}`}
+                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}${shortcutLabel ? ` • ${shortcutLabel}` : ""}`}
               >
                 <span className={cn("flex items-center justify-between gap-[5px]", isTiny && "items-start")}>
                   <span className={cn(layoutEyebrowClass, eyebrowSizeClass)} style={monoTextStyle}>
@@ -225,7 +230,7 @@ export function DisplayLayout({
                   <span className={cn("max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-bold leading-[1.05] tracking-[-0.035em]", nameSizeClass)}>
                     {displayTitle(display)}
                   </span>
-                  {!isTiny ? (
+                  {!isTiny && (!isCompact || !shortcutLabel) ? (
                     <span
                       className={cn(
                         "overflow-hidden leading-[1.35] text-[rgba(226,232,240,0.72)]",
@@ -234,6 +239,13 @@ export function DisplayLayout({
                     >
                       {displaySummary(display)}
                     </span>
+                  ) : null}
+                  {shortcutLabel ? (
+                    <ShortcutKeycaps
+                      accelerator={display.hotkey}
+                      size={isTiny || isCompact ? "xs" : "sm"}
+                      className="max-w-full"
+                    />
                   ) : null}
                 </span>
 

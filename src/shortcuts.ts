@@ -117,15 +117,18 @@ export function buildAcceleratorFromKeyboardEvent(event: KeyboardEvent): string 
 }
 
 export function formatShortcutForDisplay(accelerator: string | null | undefined) {
+  return formatShortcutTokensForDisplay(accelerator).join("+");
+}
+
+export function formatShortcutTokensForDisplay(accelerator: string | null | undefined) {
   if (!accelerator) {
-    return "";
+    return [];
   }
 
   return accelerator
     .split("+")
     .map((token) => formatToken(token))
-    .filter(Boolean)
-    .join("+");
+    .filter((token): token is string => Boolean(token));
 }
 
 function keyLabelFromCode(code: string): string | null {

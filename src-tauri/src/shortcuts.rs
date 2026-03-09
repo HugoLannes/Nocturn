@@ -256,6 +256,10 @@ fn parse_shortcut(raw: &str) -> Result<Shortcut, String> {
 }
 
 fn display_shortcut_label(display: &DisplayState) -> String {
+    if let Some(number) = display_number(display) {
+        return format!("Display {number}");
+    }
+
     if display.is_primary {
         return "Primary display".to_string();
     }
@@ -275,11 +279,47 @@ fn display_shortcut_label(display: &DisplayState) -> String {
     }
 }
 
+fn display_number(display: &DisplayState) -> Option<usize> {
+    let upper_name = display.name.to_ascii_uppercase();
+    let marker_index = upper_name.find("DISPLAY")? + "DISPLAY".len();
+    let digits = upper_name[marker_index..]
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .collect::<String>();
+
+    if digits.is_empty() {
+        return None;
+    }
+
+    digits.parse::<usize>().ok()
+}
+
+fn next_available_default_slot(used_slots: &HashSet<usize>) -> Option<usize> {
+    (1..=MAX_DEFAULT_DISPLAY_BINDINGS).find(|slot| !used_slots.contains(slot))
+}
+
 fn default_initialized_settings(
     state: &SharedState,
     previous_settings: &AppSettings,
 ) -> Option<AppSettings> {
+    let ordered_displays = {
+        let state = state.lock().expect("state poisoned");
+        let mut displays = state.displays.values().cloned().collect::<Vec<_>>();
+        displays.sort_by_key(|display| (display.y, display.x));
+        displays
+    };
+    let legacy_shortcut_settings = build_legacy_default_shortcut_settings(&ordered_displays);
+    let next_shortcut_settings = build_default_shortcut_settings(&ordered_displays);
+
     if previous_settings.shortcut_defaults_initialized {
+        if previous_settings.shortcut_settings == legacy_shortcut_settings
+            && previous_settings.shortcut_settings != next_shortcut_settings
+        {
+            let mut next_settings = previous_settings.clone();
+            next_settings.shortcut_settings = next_shortcut_settings;
+            return Some(next_settings);
+        }
+
         return None;
     }
 
@@ -295,21 +335,48 @@ fn default_initialized_settings(
             .display_bindings
             .is_empty()
     {
+        if previous_settings.shortcut_settings == legacy_shortcut_settings
+            && previous_settings.shortcut_settings != next_shortcut_settings
+        {
+            next_settings.shortcut_settings = next_shortcut_settings;
+        }
+
         return Some(next_settings);
     }
 
-    let ordered_displays = {
-        let state = state.lock().expect("state poisoned");
-        let mut displays = state.displays.values().cloned().collect::<Vec<_>>();
-        displays.sort_by_key(|display| (display.y, display.x));
-        displays
-    };
-
-    next_settings.shortcut_settings = build_default_shortcut_settings(&ordered_displays);
+    next_settings.shortcut_settings = next_shortcut_settings;
     Some(next_settings)
 }
 
 fn build_default_shortcut_settings(displays: &[DisplayState]) -> ShortcutSettings {
+    let display_bindings = displays
+        .iter()
+        .scan(HashSet::<usize>::new(), |used_slots, display| {
+            let slot = display_number(display)
+                .filter(|slot| (1..=MAX_DEFAULT_DISPLAY_BINDINGS).contains(slot))
+                .filter(|slot| used_slots.insert(*slot))
+                .or_else(|| {
+                    let slot = next_available_default_slot(used_slots)?;
+                    used_slots.insert(slot);
+                    Some(slot)
+                });
+
+            Some(slot.map(|slot| DisplayHotkeyBinding {
+                display_key: display.persistent_key.clone(),
+                display_label: display_shortcut_label(display),
+                accelerator: format!("{DEFAULT_DISPLAY_ACCELERATOR_PREFIX}{slot}"),
+            }))
+        })
+        .flatten()
+        .collect();
+
+    ShortcutSettings {
+        focus_mode_hotkey: Some(DEFAULT_FOCUS_ACCELERATOR.to_string()),
+        display_bindings,
+    }
+}
+
+fn build_legacy_default_shortcut_settings(displays: &[DisplayState]) -> ShortcutSettings {
     let display_bindings = displays
         .iter()
         .take(MAX_DEFAULT_DISPLAY_BINDINGS)
