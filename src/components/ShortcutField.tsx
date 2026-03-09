@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { buildAcceleratorFromKeyboardEvent, formatShortcutForDisplay, isModifierKey } from "../shortcuts";
+import { buildAcceleratorFromKeyboardEvent, isModifierKey } from "../shortcuts";
 import { cn, monoTextStyle } from "../ui";
+import { ShortcutKeycaps } from "./ShortcutKeycaps";
 
 type ShortcutFieldProps = {
   title: string;
@@ -10,9 +11,6 @@ type ShortcutFieldProps = {
   statusText?: string;
   onSubmit: (accelerator: string | null) => Promise<string | null>;
 };
-
-const triggerButtonClass = "inline-flex min-w-[156px] items-center justify-center rounded-[12px] border px-3 py-2 text-[13px] font-semibold leading-none tracking-[-0.02em] transition-[border-color,background,box-shadow,transform,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:w-full";
-const actionButtonClass = "inline-flex items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-[var(--text-secondary)] transition-[border-color,background,color] duration-[140ms] ease-out enabled:hover:border-white/16 enabled:hover:bg-white/[0.06] enabled:hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-45 max-[560px]:flex-1";
 
 export function ShortcutField({
   title,
@@ -26,6 +24,7 @@ export function ShortcutField({
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [feedbackState, setFeedbackState] = useState<"idle" | "saved">("idle");
 
   useEffect(() => {
     if (isCapturing) {
@@ -37,17 +36,32 @@ export function ShortcutField({
     setErrorMessage(null);
   }, [value]);
 
+  useEffect(() => {
+    if (feedbackState !== "saved") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setFeedbackState("idle");
+    }, 1400);
+
+    return () => window.clearTimeout(timer);
+  }, [feedbackState]);
+
   async function submitShortcut(accelerator: string | null) {
     setIsSaving(true);
+    setFeedbackState("idle");
     const error = await onSubmit(accelerator);
     setIsSaving(false);
 
     if (error) {
       setErrorMessage(error);
+      setFeedbackState("idle");
       return;
     }
 
     setErrorMessage(null);
+    setFeedbackState("saved");
     setIsCapturing(false);
   }
 
@@ -57,6 +71,7 @@ export function ShortcutField({
     }
 
     setErrorMessage(null);
+    setFeedbackState("idle");
     setIsCapturing(true);
   }
 
@@ -98,75 +113,83 @@ export function ShortcutField({
     await submitShortcut(accelerator);
   }
 
-  async function handleClear() {
-    if (!value || disabled || isSaving) {
-      return;
-    }
-
-    await submitShortcut(null);
-  }
-
-  const triggerLabel = isCapturing
-    ? "Press a shortcut"
-    : value
-      ? formatShortcutForDisplay(value)
-      : "No shortcut set";
   const isDisabled = disabled || isSaving;
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[14px] border border-white/8 bg-white/[0.025] px-4 py-3 max-[560px]:flex-col max-[560px]:items-stretch max-[560px]:px-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold leading-[1.15]">{title}</span>
-          {statusText ? (
-            <span
-              className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-[3px] text-[9px] uppercase tracking-[0.08em] text-[rgba(226,232,240,0.7)]"
-              style={monoTextStyle}
-            >
-              {statusText}
-            </span>
-          ) : null}
-        </div>
-        <p className="mt-1.5 text-[13px] leading-[1.6] text-[rgba(226,232,240,0.66)]">{hint}</p>
-        {errorMessage ? (
-          <p className="mt-2 text-[12px] leading-[1.5] text-[#fca5a5]">{errorMessage}</p>
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-lg py-2.5 transition-[background] duration-[140ms] ease-out max-[560px]:flex-col max-[560px]:items-stretch",
+        isCapturing && "bg-[rgba(var(--accent-rgb),0.06)]",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-[13px] font-semibold leading-[1.15] text-[var(--text-primary)]">
+          {title}
+        </span>
+        <span className="truncate text-[12px] text-[rgba(226,232,240,0.48)]">{hint}</span>
+        {statusText && !isCapturing ? (
+          <span className="shrink-0 text-[11px] text-[rgba(226,232,240,0.38)]" style={monoTextStyle}>
+            {statusText}
+          </span>
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 max-[560px]:w-full max-[560px]:flex-wrap">
-        <button
-          ref={triggerRef}
-          type="button"
-          className={cn(
-            triggerButtonClass,
-            isCapturing
-              ? "border-[rgba(var(--accent-rgb),0.42)] bg-[rgba(var(--accent-rgb),0.18)] text-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.18)]"
-              : value
-                ? "border-[rgba(var(--accent-rgb),0.24)] bg-[rgba(var(--accent-rgb),0.12)] text-[var(--text-primary)]"
-                : "border-white/10 bg-white/[0.03] text-[var(--text-secondary)]",
-          )}
-          onClick={startCapture}
-          onKeyDown={(event) => void handleKeyDown(event)}
-          onBlur={() => {
-            if (!isSaving) {
-              setIsCapturing(false);
-            }
-          }}
-          aria-label={`Set shortcut for ${title}`}
-          aria-pressed={isCapturing}
-          disabled={isDisabled}
-        >
-          <span style={monoTextStyle}>{triggerLabel}</span>
-        </button>
+      <div className="flex shrink-0 items-center gap-2">
+        {isCapturing ? (
+          <>
+            <span className="animate-pulse text-[12px] text-[var(--accent-soft)]" style={monoTextStyle}>
+              Press shortcut...
+            </span>
+            <span className="text-[10px] text-[rgba(226,232,240,0.36)]" style={monoTextStyle}>
+              Esc cancel
+            </span>
+            {/* Hidden button to capture key events */}
+            <button
+              ref={triggerRef}
+              type="button"
+              className="sr-only"
+              onKeyDown={(event) => void handleKeyDown(event)}
+              onBlur={() => {
+                if (!isSaving) {
+                  setIsCapturing(false);
+                }
+              }}
+              aria-label={`Recording shortcut for ${title}`}
+            />
+          </>
+        ) : (
+          <>
+            {errorMessage ? (
+              <span className="text-[11px] text-[#fca5a5]">{errorMessage}</span>
+            ) : null}
 
-        <button
-          type="button"
-          className={actionButtonClass}
-          onClick={() => void handleClear()}
-          disabled={isDisabled || !value}
-        >
-          Clear
-        </button>
+            {feedbackState === "saved" ? (
+              <span className="text-[10px] uppercase tracking-[0.08em] text-[#6ee7b7]" style={monoTextStyle}>
+                Saved
+              </span>
+            ) : null}
+
+            <button
+              ref={triggerRef}
+              type="button"
+              className={cn(
+                "group flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors duration-[140ms] ease-out",
+                "hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50",
+              )}
+              onClick={startCapture}
+              aria-label={`Set shortcut for ${title}`}
+              disabled={isDisabled}
+            >
+              {value ? (
+                <ShortcutKeycaps accelerator={value} size="sm" />
+              ) : (
+                <span className="text-[12px] text-[var(--text-secondary)]" style={monoTextStyle}>
+                  Set shortcut
+                </span>
+              )}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

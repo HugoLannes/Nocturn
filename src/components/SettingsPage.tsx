@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Display, ShortcutSettings, ShortcutSettingsInput } from "../types";
 import { cn, layoutEyebrowClass, layoutTitleClass, monoTextStyle } from "../ui";
 import { ShortcutField } from "./ShortcutField";
@@ -13,9 +14,14 @@ type SettingsPageProps = {
   onToggleShowOverlayHiddenApps: (enabled: boolean) => void;
 };
 
-type SettingsToggleCardProps = {
+type SettingsSectionProps = {
+  eyebrow: string;
   title: string;
-  label: string;
+  children: ReactNode;
+};
+
+type SettingsToggleRowProps = {
+  title: string;
   hint: string;
   ariaLabel: string;
   enabled: boolean;
@@ -23,8 +29,10 @@ type SettingsToggleCardProps = {
   onToggle: () => void;
 };
 
-const settingsCardClass = "rounded-[18px] border border-[var(--border)] px-[18px] pb-4 pt-[18px] max-[560px]:p-4 [background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015)),rgba(255,255,255,0.02)]";
-const settingsRowClass = "flex items-center justify-between gap-[22px] border-t border-white/6 pt-4 max-[560px]:flex-col max-[560px]:items-stretch max-[560px]:gap-[14px] max-[560px]:pt-[14px]";
+const sectionClass = "rounded-[20px] border border-[var(--border)] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_18px_40px_rgba(2,6,23,0.16)] [background:linear-gradient(180deg,rgba(255,255,255,0.036),rgba(255,255,255,0.018)_42%,rgba(255,255,255,0.022))] max-[560px]:px-4 max-[560px]:py-3.5";
+const rowClass = "flex items-center justify-between gap-4 py-2.5 max-[560px]:py-2";
+const dividerClass = "border-t border-white/[0.065]";
+const groupLabelClass = "inline-block pt-2.5 pb-1 text-[11px] uppercase tracking-[0.08em] text-[rgba(226,232,240,0.44)]";
 
 function displayShortcutTitle(display: Display, index: number) {
   const match = display.name.match(/DISPLAY(\d+)/i);
@@ -53,53 +61,59 @@ function toShortcutSettingsInput(shortcutSettings: ShortcutSettings): ShortcutSe
   };
 }
 
-function SettingsToggleCard({
+function SettingsSection({ eyebrow, title, children }: SettingsSectionProps) {
+  return (
+    <article className={sectionClass}>
+      <div className="flex items-baseline gap-2 pb-2">
+        <span className={layoutEyebrowClass} style={monoTextStyle}>{eyebrow}</span>
+        <h2 className="text-[15px] font-semibold leading-none tracking-[-0.03em] text-[var(--accent-soft)] max-[560px]:text-[14px]">
+          {title}
+        </h2>
+      </div>
+      <div className={dividerClass}>{children}</div>
+    </article>
+  );
+}
+
+function SettingsToggleRow({
   title,
-  label,
   hint,
   ariaLabel,
   enabled,
   disabled,
   onToggle,
-}: SettingsToggleCardProps) {
+}: SettingsToggleRowProps) {
   return (
-    <article className={settingsCardClass}>
-      <div className="flex items-center justify-between gap-[22px] pb-4 max-[560px]:flex-col max-[560px]:items-stretch max-[560px]:gap-3 max-[560px]:pb-[14px]">
-        <div>
-          <h2 className="text-[22px] font-semibold leading-none tracking-[0.02em] text-[var(--accent-soft)]">{title}</h2>
-        </div>
+    <div className={rowClass}>
+      <div className="min-w-0">
+        <span className="text-[14px] font-semibold leading-[1.15] tracking-[-0.02em] text-[var(--text-primary)]">{title}</span>
+        <p className="mt-0.5 text-[12px] leading-[1.5] text-[rgba(226,232,240,0.56)]">{hint}</p>
       </div>
 
-      <label className={settingsRowClass}>
-        <div>
-          <span className="block text-[14px] font-semibold leading-[1.15]">{label}</span>
-          <p className="mt-1.5 max-w-[560px] text-[13px] leading-[1.6] text-[rgba(226,232,240,0.66)]">
-            {hint}
-          </p>
-        </div>
-
-        <button
-          type="button"
+      <button
+        type="button"
+        role="switch"
+        className={cn(
+          "relative h-5 w-9 shrink-0 rounded-full border transition-[background,border-color,box-shadow] duration-[140ms] ease-out disabled:cursor-not-allowed disabled:opacity-50",
+          enabled
+            ? "border-[rgba(var(--accent-rgb),0.34)] bg-[linear-gradient(90deg,rgba(var(--accent-rgb),0.94),rgba(var(--accent-rgb),0.62))] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(var(--accent-rgb),0.22)]"
+            : "border-white/10 bg-[rgba(148,163,184,0.12)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:bg-[rgba(148,163,184,0.20)]",
+        )}
+        onClick={onToggle}
+        aria-label={ariaLabel}
+        aria-checked={enabled}
+        disabled={disabled}
+      >
+        <span
           className={cn(
-            "flex h-8 w-[58px] shrink-0 items-center rounded-full border-0 p-1 transition-[background,box-shadow] duration-[140ms] ease-out disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:w-[52px]",
+            "block h-3.5 w-3.5 rounded-full transition-transform duration-[140ms] ease-out",
             enabled
-              ? "bg-[linear-gradient(90deg,rgba(var(--accent-rgb),0.94),rgba(var(--accent-rgb),0.76))] shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.24),0_4px_18px_rgba(var(--accent-rgb),0.28)] hover:shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.24),0_4px_18px_rgba(var(--accent-rgb),0.34)]"
-              : "bg-[rgba(148,163,184,0.16)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] hover:bg-[rgba(148,163,184,0.22)]",
+              ? "translate-x-[17px] bg-white shadow-[0_1px_4px_rgba(15,23,42,0.3)]"
+              : "translate-x-[3px] bg-[rgba(148,163,184,0.55)] shadow-[0_1px_3px_rgba(15,23,42,0.2)]",
           )}
-          onClick={onToggle}
-          aria-label={ariaLabel}
-          aria-pressed={enabled}
-          disabled={disabled}
-        >
-          <span
-            className={cn(
-              "h-[22px] w-[22px] rounded-full bg-[#e2e8f0] shadow-[0_4px_12px_rgba(15,23,42,0.25)] transition-transform duration-[140ms] ease-out",
-              enabled && "translate-x-[26px]",
-            )}
-          />
-        </button>
-      </label>
-    </article>
+        />
+      </button>
+    </div>
   );
 }
 
@@ -123,82 +137,87 @@ export function SettingsPage({
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3" aria-label="Settings">
-      <header className="flex flex-col gap-[3px] px-[2px] pt-[2px] max-[560px]:items-stretch">
+      <header className="shrink-0 px-[2px] pt-[2px]">
         <span className={layoutEyebrowClass} style={monoTextStyle}>Settings</span>
         <h1 className={layoutTitleClass}>Set things your way.</h1>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-[2px] pb-[6px] pt-[2px] max-[560px]:gap-[10px] max-[560px]:pr-0">
-        <SettingsToggleCard
-          title="Overlays"
-          label="Show hidden apps"
-          hint="Display the app names detected behind blackout overlays. Turn this off for a fully plain black screen."
-          ariaLabel="Show hidden apps on blackout overlays"
-          enabled={showOverlayHiddenApps}
-          disabled={isMutating}
-          onToggle={() => onToggleShowOverlayHiddenApps(!showOverlayHiddenApps)}
-        />
-
-        <SettingsToggleCard
-          title="Cursor"
-          label="Cursor freedom"
-          hint="Turn this on to let the mouse travel outside the active monitors. Turn it off to confine the pointer."
-          ariaLabel="Allow mouse to leave active displays"
-          enabled={allowCursorExitActiveDisplays}
-          disabled={isMutating}
-          onToggle={() => onToggleAllowCursorExitActiveDisplays(!allowCursorExitActiveDisplays)}
-        />
-
-        <article className={settingsCardClass}>
-          <div className="flex flex-col gap-1 pb-4 max-[560px]:pb-[14px]">
-            <h2 className="text-[22px] font-semibold leading-none tracking-[0.02em] text-[var(--accent-soft)]">Hotkeys</h2>
-            <p className="max-w-[620px] text-[13px] leading-[1.6] text-[rgba(226,232,240,0.66)]">
-              Set global shortcuts for Focus mode and each display. They keep working while Nocturn is minimized.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-white/6 pt-4 max-[560px]:pt-[14px]">
-            <ShortcutField
-              title="Focus mode"
-              hint="Keep only the primary display active."
-              value={shortcutSettings.focusModeHotkey}
+      <div className="nocturn-scrollbar min-h-0 flex-1 overflow-y-auto px-[2px] pb-[6px] pr-1.5 pt-[2px] max-[560px]:pr-0.5">
+        <div className="flex flex-col gap-3">
+          <SettingsSection eyebrow="General" title="Display and cursor">
+            <SettingsToggleRow
+              title="Show app names on overlays"
+              hint="Display detected app names behind blackout overlays."
+              ariaLabel="Show hidden apps on blackout overlays"
+              enabled={showOverlayHiddenApps}
               disabled={isMutating}
-              onSubmit={(accelerator) => updateShortcutSettings((draft) => {
-                draft.focusModeHotkey = accelerator;
-              })}
+              onToggle={() => onToggleShowOverlayHiddenApps(!showOverlayHiddenApps)}
             />
+            <div className={dividerClass}>
+              <SettingsToggleRow
+                title="Free cursor movement"
+                hint="Let the pointer travel outside active monitors."
+                ariaLabel="Allow mouse to leave active displays"
+                enabled={allowCursorExitActiveDisplays}
+                disabled={isMutating}
+                onToggle={() => onToggleAllowCursorExitActiveDisplays(!allowCursorExitActiveDisplays)}
+              />
+            </div>
+          </SettingsSection>
 
-            {displays.map((display, index) => (
+          <SettingsSection eyebrow="Keyboard control" title="Hotkeys">
+            <div className="py-1">
               <ShortcutField
-                key={display.persistentKey}
-                title={displayShortcutTitle(display, index)}
-                hint={displayShortcutHint(display)}
-                value={display.hotkey}
+                title="Focus mode"
+                hint="Primary only"
+                value={shortcutSettings.focusModeHotkey}
                 disabled={isMutating}
                 onSubmit={(accelerator) => updateShortcutSettings((draft) => {
-                  draft.displayBindings = draft.displayBindings.filter(
-                    (binding) => binding.displayKey !== display.persistentKey,
-                  );
-
-                  if (accelerator) {
-                    draft.displayBindings.push({
-                      displayKey: display.persistentKey,
-                      displayLabel: displayShortcutTitle(display, index),
-                      accelerator,
-                    });
-                  }
+                  draft.focusModeHotkey = accelerator;
                 })}
               />
-            ))}
+            </div>
+
+            {displays.length > 0 ? (
+              <div className={dividerClass}>
+                <span className={groupLabelClass} style={monoTextStyle}>
+                  Connected displays
+                </span>
+                {displays.map((display, index) => (
+                  <ShortcutField
+                    key={display.persistentKey}
+                    title={displayShortcutTitle(display, index)}
+                    hint={displayShortcutHint(display)}
+                    value={display.hotkey}
+                    disabled={isMutating}
+                    onSubmit={(accelerator) => updateShortcutSettings((draft) => {
+                      draft.displayBindings = draft.displayBindings.filter(
+                        (binding) => binding.displayKey !== display.persistentKey,
+                      );
+
+                      if (accelerator) {
+                        draft.displayBindings.push({
+                          displayKey: display.persistentKey,
+                          displayLabel: displayShortcutTitle(display, index),
+                          accelerator,
+                        });
+                      }
+                    })}
+                  />
+                ))}
+              </div>
+            ) : null}
 
             {unavailableBindings.length > 0 ? (
-              <div className="flex flex-col gap-3 pt-1">
-                <span className={layoutEyebrowClass} style={monoTextStyle}>Unavailable displays</span>
+              <div className={dividerClass}>
+                <span className={cn(groupLabelClass, "text-[rgba(226,232,240,0.38)]")} style={monoTextStyle}>
+                  Unavailable
+                </span>
                 {unavailableBindings.map((binding) => (
                   <ShortcutField
                     key={binding.displayKey}
                     title={binding.displayLabel}
-                    hint="This display is not currently connected. The shortcut is kept until you clear it."
+                    hint="Disconnected"
                     value={binding.accelerator}
                     disabled={isMutating}
                     statusText="Not available"
@@ -219,8 +238,8 @@ export function SettingsPage({
                 ))}
               </div>
             ) : null}
-          </div>
-        </article>
+          </SettingsSection>
+        </div>
       </div>
     </section>
   );
