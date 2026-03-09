@@ -8,8 +8,11 @@ use log::{error, info, warn};
 use tauri::{command, AppHandle, Emitter, Manager, Monitor, State};
 
 use crate::{
-    cursor, overlay, panel, settings,
-    state::{DisplayInfo, DisplayState, DisplayUpdatePayload, NocturnState},
+    cursor, overlay, panel, settings, shortcuts,
+    state::{
+        DisplayInfo, DisplayShortcutBindingInfo, DisplayState, DisplayUpdatePayload, NocturnState,
+        ShortcutAction, ShortcutSettingsPayload,
+    },
     window_inventory,
 };
 
@@ -41,6 +44,7 @@ pub fn get_displays(
     state: State<'_, SharedState>,
 ) -> Result<DisplayUpdatePayload, String> {
     ensure_displays_loaded(&app, state.inner())?;
+    let _ = shortcuts::ensure_default_shortcuts(&app, state.inner())?;
     sync_runtime_behaviors(state.inner());
     build_payload(&app, state.inner())
 }
@@ -96,6 +100,46 @@ pub fn set_show_overlay_hidden_apps(
     if let Err(error) = settings::save_settings(&app, &next_settings) {
         let mut state = state.lock().expect("state poisoned");
         state.settings = previous_settings;
+        return Err(error);
+    }
+
+    emit_displays_update(&app, state.inner())?;
+    build_payload(&app, state.inner())
+}
+
+#[command]
+pub fn set_shortcut_settings(
+    app: AppHandle,
+    state: State<'_, SharedState>,
+    hotkeys: settings::ShortcutSettings,
+) -> Result<DisplayUpdatePayload, String> {
+    ensure_displays_loaded(&app, state.inner())?;
+
+    let previous_settings = {
+        let state = state.lock().expect("state poisoned");
+        state.settings.clone()
+    };
+
+    let sanitized_shortcut_settings =
+        shortcuts::sanitize_shortcut_settings(state.inner(), hotkeys)?;
+    let next_settings = settings::AppSettings {
+        shortcut_settings: sanitized_shortcut_settings,
+        shortcut_defaults_initialized: true,
+        ..previous_settings.clone()
+    };
+
+    {
+        let mut state = state.lock().expect("state poisoned");
+        state.settings = next_settings.clone();
+    }
+
+    if let Err(error) = shortcuts::sync_registered_shortcuts(&app, state.inner()) {
+        restore_previous_settings(&app, state.inner(), &previous_settings);
+        return Err(error);
+    }
+
+    if let Err(error) = settings::save_settings(&app, &next_settings) {
+        restore_previous_settings(&app, state.inner(), &previous_settings);
         return Err(error);
     }
 
@@ -396,12 +440,65 @@ fn toggle_display_internal(
     Ok("Display blacked out.".to_string())
 }
 
+pub(crate) fn execute_shortcut_action(
+    app: &AppHandle,
+    state: &SharedState,
+    action: ShortcutAction,
+) -> Result<(), String> {
+    let _guard = ToggleGuard::acquire(state)?;
+
+    match action {
+        ShortcutAction::FocusMode => focus_primary_internal(app, state).map(|_| ()),
+        ShortcutAction::ToggleDisplay { display_key } => {
+            ensure_displays_loaded(app, state)?;
+
+            let display_id = {
+                let state = state.lock().expect("state poisoned");
+                state
+                    .displays
+                    .values()
+                    .find(|display| display.persistent_key == display_key)
+                    .map(|display| display.id.clone())
+                    .ok_or_else(|| {
+                        "Display for this shortcut is not currently available.".to_string()
+                    })?
+            };
+
+            toggle_display_internal(app, state, &display_id).map(|_| ())
+        }
+    }
+}
+
 fn sync_runtime_behaviors(state: &SharedState) {
     cursor::sync_cursor_confinement(state);
 }
 
 pub fn refresh_display_snapshot(app: &AppHandle, state: &SharedState) -> Result<(), String> {
+    refresh_displays(app, state)?;
+    let shortcuts_initialized = shortcuts::ensure_default_shortcuts(app, state)?;
+    if !shortcuts_initialized {
+        shortcuts::sync_registered_shortcuts(app, state)?;
+    }
+    sync_runtime_behaviors(state);
     emit_displays_update(app, state)
+}
+
+fn restore_previous_settings(
+    app: &AppHandle,
+    state: &SharedState,
+    previous_settings: &settings::AppSettings,
+) {
+    {
+        let mut state = state.lock().expect("state poisoned");
+        state.settings = previous_settings.clone();
+    }
+
+    if let Err(error) = shortcuts::sync_registered_shortcuts(app, state) {
+        error!(
+            "restore_previous_settings: failed to restore shortcuts: {}",
+            error
+        );
+    }
 }
 
 fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), String> {
@@ -411,12 +508,18 @@ fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), Stri
 }
 
 fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePayload, String> {
-    let (displays_map, allow_cursor_exit_active_displays, show_overlay_hidden_apps) = {
+    let (
+        displays_map,
+        allow_cursor_exit_active_displays,
+        show_overlay_hidden_apps,
+        shortcut_settings,
+    ) = {
         let state = state.lock().expect("state poisoned");
         (
             state.displays.clone(),
             state.settings.allow_cursor_exit_active_displays,
             state.settings.show_overlay_hidden_apps,
+            state.settings.shortcut_settings.clone(),
         )
     };
     let active_display_count = displays_map
@@ -435,6 +538,31 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         show_overlay_hidden_apps,
     );
     overlay::sync_overlay_cards(app, &displays_map, overlay_presentations)?;
+    let available_display_keys = displays_map
+        .values()
+        .map(|display| display.persistent_key.as_str())
+        .collect::<HashSet<_>>();
+    let hotkeys_by_display_key = shortcut_settings
+        .display_bindings
+        .iter()
+        .map(|binding| (binding.display_key.as_str(), binding.accelerator.clone()))
+        .collect::<HashMap<_, _>>();
+    let mut display_bindings = shortcut_settings
+        .display_bindings
+        .iter()
+        .map(|binding| DisplayShortcutBindingInfo {
+            display_key: binding.display_key.clone(),
+            display_label: binding.display_label.clone(),
+            accelerator: binding.accelerator.clone(),
+            is_available: available_display_keys.contains(binding.display_key.as_str()),
+        })
+        .collect::<Vec<_>>();
+
+    display_bindings.sort_by(|left, right| {
+        left.display_label
+            .cmp(&right.display_label)
+            .then_with(|| left.display_key.cmp(&right.display_key))
+    });
 
     let mut displays = displays_map
         .values()
@@ -448,6 +576,7 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
                 name: display.name,
                 manufacturer: display.manufacturer,
                 model: display.model,
+                persistent_key: display.persistent_key.clone(),
                 width: display.width,
                 height: display.height,
                 x: display.x,
@@ -457,6 +586,9 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
                 orientation: display.orientation,
                 is_primary: display.is_primary,
                 is_blacked_out: display.is_blacked_out,
+                hotkey: hotkeys_by_display_key
+                    .get(display.persistent_key.as_str())
+                    .cloned(),
                 hidden_apps: hidden_apps_by_display
                     .get(&display_id)
                     .cloned()
@@ -473,6 +605,10 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         blackout_count,
         allow_cursor_exit_active_displays,
         show_overlay_hidden_apps,
+        shortcut_settings: ShortcutSettingsPayload {
+            focus_mode_hotkey: shortcut_settings.focus_mode_hotkey,
+            display_bindings,
+        },
     })
 }
 
@@ -756,6 +892,11 @@ fn monitor_to_display_state(
         name,
         manufacturer: identity.manufacturer,
         model: identity.model,
+        persistent_key: if identity.persistent_key.is_empty() {
+            format!("gdi:{}", id)
+        } else {
+            identity.persistent_key
+        },
         width: size.width,
         height: size.height,
         x: position.x,

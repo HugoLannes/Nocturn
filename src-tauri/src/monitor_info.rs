@@ -16,6 +16,7 @@ use windows_sys::Win32::Graphics::Gdi::{EnumDisplaySettingsW, DEVMODEW, ENUM_CUR
 pub struct MonitorIdentity {
     pub manufacturer: String,
     pub model: String,
+    pub persistent_key: String,
 }
 
 /// Query refresh rate and orientation for a GDI device name (e.g. `\\.\DISPLAY1`).
@@ -121,18 +122,39 @@ pub fn query_monitor_identities() -> HashMap<String, MonitorIdentity> {
 
             // Model = friendly name with manufacturer prefix stripped
             let model = extract_model(&friendly_name, &manufacturer, &pnp_code);
+            let persistent_key = build_persistent_display_key(
+                path.sourceInfo.adapterId.HighPart as u32,
+                path.sourceInfo.adapterId.LowPart,
+                path.sourceInfo.id,
+                path.targetInfo.id,
+                &gdi_name,
+            );
 
             map.insert(
                 gdi_name,
                 MonitorIdentity {
                     manufacturer,
                     model,
+                    persistent_key,
                 },
             );
         }
 
         map
     }
+}
+
+fn build_persistent_display_key(
+    adapter_high: u32,
+    adapter_low: u32,
+    source_id: u32,
+    target_id: u32,
+    gdi_name: &str,
+) -> String {
+    format!(
+        "connector:{adapter_high:08X}:{adapter_low:08X}:{source_id}:{target_id}:{}",
+        gdi_name.to_uppercase()
+    )
 }
 
 /// Decode a 16-bit EDID manufacturer ID into a 3-letter PNP code.

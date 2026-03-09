@@ -6,6 +6,7 @@ mod monitor_info;
 mod overlay;
 mod panel;
 mod settings;
+mod shortcuts;
 mod state;
 mod window_inventory;
 
@@ -24,6 +25,14 @@ fn main() {
 
     tauri::Builder::default()
         .manage(shared_state)
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    let state = app.state::<SharedState>();
+                    shortcuts::handle_shortcut_event(app, shortcut, event, state.inner());
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -31,6 +40,7 @@ fn main() {
             commands::get_overlay_card_presentation,
             commands::set_allow_cursor_exit_active_displays,
             commands::set_show_overlay_hidden_apps,
+            commands::set_shortcut_settings,
             commands::toggle_display,
             commands::unblank_all,
             commands::focus_primary,
@@ -105,7 +115,7 @@ fn main() {
                 }
             });
 
-            let _ = commands::get_displays(app.handle().clone(), state);
+            let _ = commands::refresh_display_snapshot(app.handle(), state.inner());
 
             Ok(())
         })

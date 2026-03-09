@@ -86,8 +86,10 @@ function App() {
     focusPrimary,
     allowCursorExitActiveDisplays,
     showOverlayHiddenApps,
+    shortcutSettings,
     setAllowCursorExitActiveDisplays,
     setShowOverlayHiddenApps,
+    setShortcutSettings,
     lastActiveDisplayId,
   } = useDisplays();
   const {
@@ -273,9 +275,12 @@ function App() {
       <main className="min-h-0 flex-1 overflow-hidden px-4 pb-3 pt-[14px] max-[560px]:px-3 max-[560px]:pb-[10px] max-[560px]:pt-3">
         {activeView === "settings" ? (
           <SettingsPage
+            displays={displays}
+            shortcutSettings={shortcutSettings}
             allowCursorExitActiveDisplays={allowCursorExitActiveDisplays}
             showOverlayHiddenApps={showOverlayHiddenApps}
             isMutating={isMutating}
+            onUpdateShortcutSettings={setShortcutSettings}
             onToggleAllowCursorExitActiveDisplays={(allowed) => void setAllowCursorExitActiveDisplays(allowed)}
             onToggleShowOverlayHiddenApps={(enabled) => void setShowOverlayHiddenApps(enabled)}
           />
@@ -286,6 +291,7 @@ function App() {
             isMutating={isMutating}
             pendingDisplayIds={pendingDisplayIds}
             lastActiveDisplayId={lastActiveDisplayId}
+            focusModeHotkey={shortcutSettings.focusModeHotkey}
             onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
           />

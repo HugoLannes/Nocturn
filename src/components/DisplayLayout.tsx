@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { formatShortcutForDisplay } from "../shortcuts";
 import type { Display } from "../types";
 import {
   cn,
@@ -13,6 +14,7 @@ type DisplayLayoutProps = {
   isMutating: boolean;
   pendingDisplayIds: ReadonlySet<string>;
   lastActiveDisplayId: string | null;
+  focusModeHotkey: string | null;
   onFocusMode: () => void;
   onToggle: (displayId: string) => void;
 };
@@ -112,6 +114,7 @@ export function DisplayLayout({
   isMutating,
   pendingDisplayIds,
   lastActiveDisplayId,
+  focusModeHotkey,
   onFocusMode,
   onToggle,
 }: DisplayLayoutProps) {
@@ -152,7 +155,7 @@ export function DisplayLayout({
         >
           <span className="text-[14px] font-semibold leading-[1.05] tracking-[-0.03em]">Focus mode</span>
           <span className="text-[10px] uppercase leading-[1.2] tracking-[0.08em] text-[rgba(226,232,240,0.64)]" style={monoTextStyle}>
-            Primary only
+            {focusModeHotkey ? `Primary only · ${formatShortcutForDisplay(focusModeHotkey)}` : "Primary only"}
           </span>
         </button>
       </header>
@@ -201,7 +204,7 @@ export function DisplayLayout({
                 disabled={isDisabled}
                 aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}`}
                 aria-busy={isPending}
-                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}`}
+                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}${display.hotkey ? ` • ${formatShortcutForDisplay(display.hotkey)}` : ""}`}
               >
                 <span className={cn("flex items-center justify-between gap-[5px]", isTiny && "items-start")}>
                   <span className={cn(layoutEyebrowClass, eyebrowSizeClass)} style={monoTextStyle}>
