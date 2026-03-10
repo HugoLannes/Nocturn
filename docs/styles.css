@@ -28,6 +28,15 @@ html {
   scroll-padding-top: 116px;
 }
 
+main[id],
+section[id] {
+  scroll-margin-top: -100px;
+}
+
+main[id] {
+  scroll-margin-top: 24px;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -573,6 +582,7 @@ a {
 
 .feature-card-top {
   align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .feature-card-foot {
@@ -589,30 +599,15 @@ a {
 
 .feature-kicker {
   display: block;
-  max-width: 18ch;
-  padding-top: 6px;
+  max-width: 24ch;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.16em;
   line-height: 1.5;
-  text-align: right;
+  text-align: left;
   text-transform: uppercase;
   color: rgba(var(--card-accent), 0.94);
-}
-
-.feature-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  border: 1px solid rgba(var(--card-accent), 0.28);
-  background: linear-gradient(180deg, rgba(var(--card-accent), 0.18), rgba(var(--card-accent), 0.08));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.94);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 0.9rem;
 }
 
 .feature-card h3 {
@@ -641,6 +636,12 @@ a {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.feature-chip-subtle {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
 }
 
 .feature-card-trail {
