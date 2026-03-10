@@ -104,8 +104,10 @@
             </ul>
           </div>
 
-          <div class="hero-visual reveal reveal-delay-2">
+          <div class="hero-visual reveal reveal-delay-2" data-parallax-root>
             <div class="preview-frame">
+              <div class="preview-orb preview-orb-primary" aria-hidden="true"></div>
+              <div class="preview-orb preview-orb-secondary" aria-hidden="true"></div>
               <div class="preview-media">
                 <img
                   class="preview-image"
@@ -255,5 +257,54 @@
         </div>
       </footer>
     </div>
+
+    <script>
+      (() => {
+        const parallaxRoot = document.querySelector("[data-parallax-root]");
+        const frame = parallaxRoot?.querySelector(".preview-frame");
+
+        if (!parallaxRoot || !frame) {
+          return;
+        }
+
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)");
+
+        const resetFrame = () => {
+          frame.style.setProperty("--parallax-x", "0px");
+          frame.style.setProperty("--parallax-y", "0px");
+          frame.style.setProperty("--parallax-rx", "0deg");
+          frame.style.setProperty("--parallax-ry", "0deg");
+          frame.style.setProperty("--parallax-glow-x", "0px");
+          frame.style.setProperty("--parallax-glow-y", "0px");
+        };
+
+        const updateFrame = (event) => {
+          if (reducedMotion.matches || coarsePointer.matches) {
+            resetFrame();
+            return;
+          }
+
+          const bounds = parallaxRoot.getBoundingClientRect();
+          const px = (event.clientX - bounds.left) / bounds.width;
+          const py = (event.clientY - bounds.top) / bounds.height;
+          const nx = (px - 0.5) * 2;
+          const ny = (py - 0.5) * 2;
+
+          frame.style.setProperty("--parallax-x", `${nx * 18}px`);
+          frame.style.setProperty("--parallax-y", `${ny * 14}px`);
+          frame.style.setProperty("--parallax-rx", `${-ny * 5}deg`);
+          frame.style.setProperty("--parallax-ry", `${nx * 7}deg`);
+          frame.style.setProperty("--parallax-glow-x", `${nx * 32}px`);
+          frame.style.setProperty("--parallax-glow-y", `${ny * 24}px`);
+        };
+
+        parallaxRoot.addEventListener("pointermove", updateFrame);
+        parallaxRoot.addEventListener("pointerleave", resetFrame);
+        reducedMotion.addEventListener("change", resetFrame);
+        coarsePointer.addEventListener("change", resetFrame);
+        resetFrame();
+      })();
+    </script>
   </body>
 </html>

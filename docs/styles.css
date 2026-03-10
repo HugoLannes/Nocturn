@@ -743,11 +743,18 @@ a {
 
 @media (max-width: 1080px) {
   .hero {
+    grid-template-columns: 1fr;
     padding-top: 36px;
   }
 
   .hero h1 {
-    max-width: 12ch;
+    max-width: none;
+  }
+
+  .hero-visual {
+    margin-left: 0;
+    margin-right: 0;
+    justify-content: center;
   }
 
   .preview-frame {
@@ -807,7 +814,7 @@ a {
 
 @media (max-width: 640px) {
   :root {
-    --container: min(100vw - 28px, 100vw - 28px);
+    --container: calc(100vw - 28px);
   }
 
   .site-header {
@@ -823,12 +830,15 @@ a {
   }
 
   .hero {
+    grid-template-columns: 1fr;
     gap: 30px;
     padding: 24px 0 30px;
   }
 
   .hero-visual {
-    justify-content: stretch;
+    margin-left: 0;
+    margin-right: 0;
+    justify-content: center;
   }
 
   .preview-frame {
@@ -837,7 +847,7 @@ a {
 
   .hero h1 {
     max-width: none;
-    font-size: clamp(2.4rem, 12vw, 4rem);
+    font-size: clamp(2.4rem, 10vw, 4rem);
   }
 
   .hero-lead {
@@ -848,6 +858,7 @@ a {
   .ghost-button,
   .github-badge {
     width: 100%;
+    justify-content: center;
   }
 
   .header-actions,
@@ -855,12 +866,25 @@ a {
     width: 100%;
   }
 
+  .github-badge {
+    justify-content: center;
+  }
+
   .section {
     padding-top: 58px;
   }
 
+  .section-heading h2 {
+    font-size: clamp(1.8rem, 7vw, 2.8rem);
+  }
+
   .hero-meta {
     flex-wrap: wrap;
+  }
+
+  .hero-meta li {
+    font-size: 0.9rem;
+    padding: 8px 12px;
   }
 
   .feature-card {
@@ -885,6 +909,83 @@ a {
   .feature-card-trail {
     flex-basis: 100%;
     max-width: 220px;
+  }
+
+  .workflow-section {
+    padding-bottom: 48px;
+  }
+
+  .workflow-card {
+    padding: 20px;
+  }
+
+  .site-footer {
+    gap: 16px;
+    padding-bottom: 28px;
+  }
+
+  .footer-links {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 380px) {
+  :root {
+    --container: calc(100vw - 20px);
+  }
+
+  .site-header {
+    padding: 12px 14px;
+    gap: 12px;
+    border-radius: 20px;
+  }
+
+  .brand img,
+  .footer-brand img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand span {
+    font-size: 1.05rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 10vw, 3rem);
+  }
+
+  .hero-lead {
+    font-size: 0.94rem;
+  }
+
+  .hero-meta li {
+    font-size: 0.82rem;
+    padding: 7px 10px;
+  }
+
+  .feature-card {
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .feature-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .feature-card p {
+    font-size: 0.94rem;
+  }
+
+  .primary-button,
+  .ghost-button {
+    min-height: 42px;
+    padding: 0 14px;
+    font-size: 0.94rem;
+  }
+
+  .github-badge {
+    min-height: 42px;
   }
 }
 
