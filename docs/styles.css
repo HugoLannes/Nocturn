@@ -414,6 +414,15 @@ a {
   display: block;
 }
 
+.hero-word-nocturn {
+  display: inline-block;
+  color: var(--accent);
+  text-shadow:
+    0 0 14px rgba(var(--accent-rgb), 0.48),
+    0 0 28px rgba(var(--accent-rgb), 0.24),
+    0 0 42px rgba(var(--accent-rgb), 0.12);
+}
+
 .hero-lead,
 .section-heading p,
 .stat-card p,
