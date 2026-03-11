@@ -1,7 +1,7 @@
 {
   "name": "nocturn",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Nocturn desktop application",
   "scripts": {
     "dev": "vite",
