@@ -136,7 +136,8 @@ export function DisplayLayout({
     (display) => !display.isPrimary && !display.isBlackedOut,
   ).length;
   const focusModeActive = activeCount === 1 && primaryDisplay !== null && !primaryDisplay.isBlackedOut;
-  const canFocusMode = primaryDisplay !== null && (activeSecondaryCount > 0 || primaryDisplay.isBlackedOut);
+  const canFocusMode = primaryDisplay !== null
+    && (focusModeActive || activeSecondaryCount > 0 || primaryDisplay.isBlackedOut);
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-[10px]" aria-label="Display arrangement">
@@ -152,12 +153,14 @@ export function DisplayLayout({
           onClick={onFocusMode}
           disabled={!canFocusMode || isMutating}
           aria-pressed={focusModeActive}
-          aria-label="Enable focus mode and keep only the primary display active"
+          aria-label={focusModeActive
+            ? "Disable focus mode and restore all displays"
+            : "Enable focus mode and keep only the primary display active"}
         >
           <span className="text-[14px] font-semibold leading-[1.05] tracking-[-0.03em]">Focus mode</span>
           <span className="flex flex-wrap items-center gap-x-[6px] gap-y-[4px]">
             <span className="text-[10px] uppercase leading-[1.2] tracking-[0.08em] text-[rgba(226,232,240,0.64)]" style={monoTextStyle}>
-              Primary only
+              {focusModeActive ? "Restore all" : "Primary only"}
             </span>
             <ShortcutKeycaps accelerator={focusModeHotkey} size="sm" />
           </span>

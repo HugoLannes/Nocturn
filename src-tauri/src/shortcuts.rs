@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use log::{info, warn};
 use tauri::AppHandle;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
+use tauri_plugin_global_shortcut::{
+    Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent, ShortcutState,
+};
 
 use crate::{
     commands::{self, SharedState},
@@ -19,6 +21,68 @@ struct PlannedShortcut {
 const DEFAULT_FOCUS_ACCELERATOR: &str = "Ctrl+Shift+Num0";
 const DEFAULT_DISPLAY_ACCELERATOR_PREFIX: &str = "Ctrl+Shift+Num";
 const MAX_DEFAULT_DISPLAY_BINDINGS: usize = 9;
+
+fn validate_shortcut_policy(shortcut: &Shortcut) -> Result<(), String> {
+    if shortcut.mods.intersects(Modifiers::SUPER | Modifiers::META) {
+        return Err("Windows key shortcuts are reserved by the OS and cannot be used.".to_string());
+    }
+
+    match shortcut.key {
+        Code::F12 => Err(
+            "F12 is reserved by Windows for debugging and cannot be used as a global shortcut."
+                .to_string(),
+        ),
+        Code::F4 if shortcut.mods.contains(Modifiers::ALT) => Err(
+            "Alt+F4 closes the active window and cannot be used as a global shortcut."
+                .to_string(),
+        ),
+        Code::Tab if shortcut.mods.contains(Modifiers::ALT) => Err(
+            "Alt+Tab is reserved by Windows task switching and cannot be used as a global shortcut."
+                .to_string(),
+        ),
+        Code::Space if shortcut.mods.contains(Modifiers::ALT) => Err(
+            "Alt+Space opens the system window menu and cannot be used as a global shortcut."
+                .to_string(),
+        ),
+        Code::Escape if shortcut.mods.contains(Modifiers::ALT) => Err(
+            "Alt+Esc is reserved by Windows window switching and cannot be used as a global shortcut."
+                .to_string(),
+        ),
+        Code::Escape if shortcut.mods.contains(Modifiers::CONTROL) => Err(
+            "Ctrl+Esc and Ctrl+Shift+Esc are reserved by Windows and cannot be used as global shortcuts."
+                .to_string(),
+        ),
+        Code::Delete
+            if shortcut.mods.contains(Modifiers::CONTROL)
+                && shortcut.mods.contains(Modifiers::ALT) =>
+        {
+            Err(
+                "Ctrl+Alt+Delete is reserved by Windows security and cannot be used as a global shortcut."
+                    .to_string(),
+            )
+        }
+        _ => Ok(()),
+    }
+}
+
+fn describe_registration_error(accelerator: &str, error: impl std::fmt::Display) -> String {
+    let error_text = error.to_string();
+    let normalized = error_text.to_ascii_lowercase();
+
+    if normalized.contains("already registered") {
+        return format!(
+            "Shortcut {accelerator} is already used by another application or by Windows."
+        );
+    }
+
+    if normalized.contains("unknown vkcode") {
+        return format!(
+            "Shortcut {accelerator} is not supported by the current Windows global shortcut backend."
+        );
+    }
+
+    format!("Failed to register shortcut {accelerator}: {error_text}")
+}
 
 pub fn ensure_default_shortcuts(app: &AppHandle, state: &SharedState) -> Result<bool, String> {
     let previous_settings = {
@@ -153,10 +217,7 @@ pub fn sync_registered_shortcuts(app: &AppHandle, state: &SharedState) -> Result
             .register(planned.shortcut)
             .map_err(|error| {
                 let _ = app.global_shortcut().unregister_all();
-                format!(
-                    "Failed to register shortcut {}: {error}",
-                    planned.accelerator
-                )
+                describe_registration_error(&planned.accelerator, error)
             })?;
 
         registered_shortcuts.insert(planned.shortcut.id(), planned.action.clone());
@@ -246,11 +307,7 @@ fn parse_shortcut(raw: &str) -> Result<Shortcut, String> {
         .parse::<Shortcut>()
         .map_err(|error| format!("Invalid shortcut {accelerator:?}: {error}"))?;
 
-    if shortcut.mods.is_empty() {
-        return Err(format!(
-            "Shortcut {accelerator:?} must include at least one modifier key."
-        ));
-    }
+    validate_shortcut_policy(&shortcut)?;
 
     Ok(shortcut)
 }
@@ -391,5 +448,30 @@ fn build_legacy_default_shortcut_settings(displays: &[DisplayState]) -> Shortcut
     ShortcutSettings {
         focus_mode_hotkey: Some(DEFAULT_FOCUS_ACCELERATOR.to_string()),
         display_bindings,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_non_reserved_single_key_shortcuts() {
+        assert!(parse_shortcut("KeyA").is_ok());
+        assert!(parse_shortcut("F11").is_ok());
+        assert!(parse_shortcut("Ctrl+Shift+Numpad0").is_ok());
+    }
+
+    #[test]
+    fn rejects_reserved_windows_shortcuts() {
+        assert!(parse_shortcut("F12").unwrap_err().contains("F12"));
+        assert!(parse_shortcut("Alt+F4").unwrap_err().contains("Alt+F4"));
+        assert!(parse_shortcut("Alt+Tab").unwrap_err().contains("Alt+Tab"));
+        assert!(parse_shortcut("Ctrl+Alt+Delete")
+            .unwrap_err()
+            .contains("Ctrl+Alt+Delete"));
+        assert!(parse_shortcut("Super+KeyN")
+            .unwrap_err()
+            .contains("Windows key"));
     }
 }

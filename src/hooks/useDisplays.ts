@@ -180,9 +180,9 @@ export function useDisplays() {
     setIsMutating(true);
 
     try {
-      await withTimeout(invoke("focus_primary"), "Enabling focus mode");
+      await withTimeout(invoke("focus_primary"), "Toggling focus mode");
     } catch (error) {
-      console.error("Failed to enable focus mode:", error);
+      console.error("Failed to toggle focus mode:", error);
       void loadDisplays();
     } finally {
       setIsMutating(false);

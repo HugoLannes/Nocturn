@@ -240,7 +240,7 @@ pub fn focus_primary(app: AppHandle, state: State<'_, SharedState>) -> Result<St
     let started_at = Instant::now();
     info!("focus_primary: start");
     let _guard = ToggleGuard::acquire(state.inner())?;
-    let result = focus_primary_internal(&app, state.inner());
+    let result = toggle_focus_mode_internal(&app, state.inner());
     match &result {
         Ok(message) => info!(
             "focus_primary: success message={}, elapsed={}ms",
@@ -385,6 +385,38 @@ pub fn focus_primary_internal(app: &AppHandle, state: &SharedState) -> Result<St
     Ok("Focus mode enabled.".to_string())
 }
 
+fn focus_mode_is_active(state: &SharedState) -> bool {
+    let state = state.lock().expect("state poisoned");
+    let Some(primary_display_id) = state
+        .displays
+        .values()
+        .find(|display| display.is_primary && !display.is_blacked_out)
+        .map(|display| display.id.clone())
+    else {
+        return false;
+    };
+
+    let active_display_ids = state
+        .displays
+        .values()
+        .filter(|display| !display.is_blacked_out)
+        .map(|display| display.id.as_str())
+        .collect::<Vec<_>>();
+
+    active_display_ids.len() == 1 && active_display_ids[0] == primary_display_id
+}
+
+fn toggle_focus_mode_internal(app: &AppHandle, state: &SharedState) -> Result<String, String> {
+    ensure_displays_loaded(app, state)?;
+
+    if focus_mode_is_active(state) {
+        unblank_all_internal(app, state)?;
+        return Ok("Focus mode disabled.".to_string());
+    }
+
+    focus_primary_internal(app, state)
+}
+
 fn toggle_display_internal(
     app: &AppHandle,
     state: &SharedState,
@@ -490,7 +522,7 @@ pub(crate) fn execute_shortcut_action(
     let _guard = ToggleGuard::acquire(state)?;
 
     match action {
-        ShortcutAction::FocusMode => focus_primary_internal(app, state).map(|_| ()),
+        ShortcutAction::FocusMode => toggle_focus_mode_internal(app, state).map(|_| ()),
         ShortcutAction::ToggleDisplay { display_key } => {
             ensure_displays_loaded(app, state)?;
 

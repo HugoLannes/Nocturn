@@ -251,10 +251,24 @@ export function SettingsPage({
           </SettingsSection>
 
           <SettingsSection eyebrow="Keyboard control" title="Hotkeys">
+            <div className="px-[2px] py-2 text-[12px] leading-[1.55] text-[rgba(226,232,240,0.56)]">
+              Most keys can be assigned, including single keys. Windows-reserved shortcuts such as
+              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+F4</span>
+              ,
+              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+Tab</span>
+              ,
+              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Ctrl+Alt+Delete</span>
+              ,
+              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>F12</span>
+              , and
+              <span className="ml-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Win+*</span>
+              stay blocked.
+            </div>
+
             <div className="py-1">
               <ShortcutField
                 title="Focus mode"
-                hint="Primary only"
+                hint="Toggle primary only"
                 value={shortcutSettings.focusModeHotkey}
                 disabled={isMutating}
                 onSubmit={(accelerator) => updateShortcutSettings((draft) => {
