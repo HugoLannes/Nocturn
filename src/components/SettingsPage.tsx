@@ -251,7 +251,7 @@ export function SettingsPage({
           </SettingsSection>
 
           <SettingsSection eyebrow="Keyboard control" title="Hotkeys">
-            <div className="px-[2px] py-2 text-[12px] leading-[1.55] text-[rgba(226,232,240,0.56)]">
+            <div className="px-[2px] pb-1 pt-2 text-[12px] leading-[1.55] text-[rgba(226,232,240,0.56)]">
               Most keys can be assigned, including single keys. Windows-reserved shortcuts such as
               <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+F4</span>
               ,
@@ -265,7 +265,7 @@ export function SettingsPage({
               stay blocked.
             </div>
 
-            <div className="py-1">
+            <div>
               <ShortcutField
                 title="Focus mode"
                 hint="Toggle primary only"

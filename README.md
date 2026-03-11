@@ -35,7 +35,7 @@ Useful at night, during focused work, or anytime a spare monitor is just extra l
 
 ## Install
 
-Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/nocturn/releases/latest).
+Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/Nocturn/releases/latest).
 
 ## Website
 
@@ -70,7 +70,7 @@ npm run tauri:build    # production installer
 
 ## Contributing
 
-Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/nocturn/issues).
+Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/Nocturn/issues).
 
 ## License
 
