@@ -12,8 +12,6 @@ type ShortcutFieldProps = {
   onSubmit: (accelerator: string | null) => Promise<string | null>;
 };
 
-const tertiaryButtonClass = "inline-flex items-center rounded-md border border-white/10 px-2 py-[5px] text-[10px] uppercase tracking-[0.08em] text-[rgba(226,232,240,0.58)] transition-[border-color,background,color,opacity] duration-[140ms] ease-out hover:border-white/15 hover:bg-white/[0.03] hover:text-[rgba(226,232,240,0.78)] disabled:cursor-not-allowed disabled:opacity-50";
-
 export function ShortcutField({
   title,
   hint,
@@ -112,6 +110,7 @@ export function ShortcutField({
     setIsSaving(false);
 
     if (error) {
+      setIsCapturing(false);
       setErrorMessage(error);
       setFeedbackState("idle");
       return;
@@ -194,16 +193,6 @@ export function ShortcutField({
               Click outside to cancel
             </span>
             <button
-              type="button"
-              className={tertiaryButtonClass}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={cancelCapture}
-              disabled={isDisabled}
-              aria-label={`Cancel shortcut capture for ${title}`}
-            >
-              Cancel
-            </button>
-            <button
               ref={triggerRef}
               type="button"
               className="sr-only"
@@ -222,18 +211,6 @@ export function ShortcutField({
               <span className="text-[10px] uppercase tracking-[0.08em] text-[#6ee7b7]" style={monoTextStyle}>
                 Saved
               </span>
-            ) : null}
-
-            {value ? (
-              <button
-                type="button"
-                className={tertiaryButtonClass}
-                onClick={() => void submitShortcut(null)}
-                disabled={isDisabled}
-                aria-label={`Clear shortcut for ${title}`}
-              >
-                Clear
-              </button>
             ) : null}
 
             <button
@@ -255,6 +232,23 @@ export function ShortcutField({
                 </span>
               )}
             </button>
+
+            {value ? (
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-5 w-5 items-center justify-center rounded-full text-[rgba(226,232,240,0.38)] transition-[background,color,opacity] duration-[140ms] ease-out",
+                  "hover:bg-white/[0.05] hover:text-[rgba(226,232,240,0.74)] disabled:cursor-not-allowed disabled:opacity-40",
+                )}
+                onClick={() => void submitShortcut(null)}
+                aria-label={`Remove shortcut for ${title}`}
+                disabled={isDisabled}
+              >
+                <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden="true" fill="none">
+                  <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            ) : null}
           </>
         )}
       </div>
