@@ -2,7 +2,6 @@ node_modules/
 dist/
 .vscode/
 .claude/
-docs/
 .env
 .env.*
 !.env.example

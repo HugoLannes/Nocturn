@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.4-111827?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.5-111827?style=for-the-badge" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-111827?style=for-the-badge" />
 </p>
 
@@ -35,7 +35,19 @@ Useful at night, during focused work, or anytime a spare monitor is just extra l
 
 ## Install
 
-Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/nocturn/releases/latest).
+Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/Nocturn/releases/latest).
+
+## Website
+
+The public landing page lives in `docs/` and is intended to ship on GitHub Pages at `https://nocturn.lannes.dev`.
+
+For GitHub Pages, use:
+
+- **Source**: Deploy from a branch
+- **Branch**: `main`
+- **Folder**: `/docs`
+
+The custom domain is tracked in `docs/CNAME`.
 
 ## Build from source
 
@@ -58,7 +70,7 @@ npm run tauri:build    # production installer
 
 ## Contributing
 
-Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/nocturn/issues).
+Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/Nocturn/issues).
 
 ## License
 

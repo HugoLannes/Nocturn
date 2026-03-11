@@ -54,17 +54,12 @@ export function ShortcutField({
     return () => window.clearTimeout(timer);
   }, [feedbackState]);
 
-  // Track held keys at the window level so modifier state is always accurate,
-  // even when Chromium/WebView2 misreports event.ctrlKey on certain layouts.
   useEffect(() => {
     if (!isCapturing) {
       heldCodes.current.clear();
       return;
     }
 
-    // Delay modifier keyup removal by a short window. Windows sends a
-    // synthetic Shift keyup right before numpad keydown when NumLock is on,
-    // which would otherwise cause heldCodes to lose Shift before we read it.
     const pendingRemovals = new Map<string, number>();
 
     function onKeyDown(event: KeyboardEvent) {
@@ -115,6 +110,7 @@ export function ShortcutField({
     setIsSaving(false);
 
     if (error) {
+      setIsCapturing(false);
       setErrorMessage(error);
       setFeedbackState("idle");
       return;
@@ -135,42 +131,31 @@ export function ShortcutField({
     setIsCapturing(true);
   }
 
+  function cancelCapture() {
+    if (isSavingRef.current) {
+      return;
+    }
+
+    setIsCapturing(false);
+    setErrorMessage(null);
+    setFeedbackState("idle");
+  }
+
   function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
-    if (!isCapturing || disabled || isSavingRef.current) {
+    if (!isCapturing || disabled || isSavingRef.current || event.nativeEvent.repeat) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
 
-    if (event.key === "Escape") {
-      setIsCapturing(false);
-      setErrorMessage(null);
-      return;
-    }
-
-    // Allow bare Backspace/Delete to clear the shortcut (check held codes
-    // for modifiers instead of event flags, consistent with the rest).
-    if (
-      (event.key === "Backspace" || event.key === "Delete")
-      && !heldCodes.current.has("AltLeft") && !heldCodes.current.has("AltRight")
-      && !heldCodes.current.has("ControlLeft") && !heldCodes.current.has("ControlRight")
-      && !heldCodes.current.has("MetaLeft") && !heldCodes.current.has("MetaRight")
-      && !heldCodes.current.has("ShiftLeft") && !heldCodes.current.has("ShiftRight")
-    ) {
-      void submitShortcut(null);
-      return;
-    }
-
     if (isModifierCode(event.nativeEvent.code)) {
       return;
     }
 
-    // Build accelerator by merging manually tracked modifier state with
-    // event flags — covers both AZERTY and NumLock+Shift edge cases.
     const accelerator = buildAcceleratorFromHeldCodes(heldCodes.current, event.nativeEvent);
     if (!accelerator) {
-      setErrorMessage("Use at least one modifier key.");
+      setErrorMessage("This key is not supported as a global shortcut.");
       return;
     }
 
@@ -198,26 +183,21 @@ export function ShortcutField({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 max-[560px]:justify-end">
         {isCapturing ? (
           <>
             <span className="animate-pulse text-[12px] text-[var(--accent-soft)]" style={monoTextStyle}>
-              Press shortcut...
+              Press any key...
             </span>
             <span className="text-[10px] text-[rgba(226,232,240,0.36)]" style={monoTextStyle}>
-              Esc cancel
+              Click outside to cancel
             </span>
-            {/* Hidden button to capture key events */}
             <button
               ref={triggerRef}
               type="button"
               className="sr-only"
               onKeyDown={handleKeyDown}
-              onBlur={() => {
-                if (!isSavingRef.current) {
-                  setIsCapturing(false);
-                }
-              }}
+              onBlur={cancelCapture}
               aria-label={`Recording shortcut for ${title}`}
             />
           </>
@@ -252,6 +232,23 @@ export function ShortcutField({
                 </span>
               )}
             </button>
+
+            {value ? (
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-5 w-5 items-center justify-center rounded-full text-[rgba(226,232,240,0.38)] transition-[background,color,opacity] duration-[140ms] ease-out",
+                  "hover:bg-white/[0.05] hover:text-[rgba(226,232,240,0.74)] disabled:cursor-not-allowed disabled:opacity-40",
+                )}
+                onClick={() => void submitShortcut(null)}
+                aria-label={`Remove shortcut for ${title}`}
+                disabled={isDisabled}
+              >
+                <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden="true" fill="none">
+                  <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            ) : null}
           </>
         )}
       </div>

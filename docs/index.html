@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nocturn - Screen blackout app for Windows</title>
+    <meta
+      name="description"
+      content="Nocturn is a lightweight Windows utility that blacks out selected monitors instantly without changing your desktop layout."
+    />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#090a10" />
+    <meta property="og:title" content="Nocturn - Screen blackout app for Windows" />
+    <meta
+      property="og:description"
+      content="Black out any monitor instantly on Windows without moving windows or changing your display layout."
+    />
+    <meta property="og:site_name" content="Nocturn" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nocturn.lannes.dev/" />
+    <meta property="og:image" content="https://nocturn.lannes.dev/assets/preview-1.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nocturn - Screen blackout app for Windows" />
+    <meta
+      name="twitter:description"
+      content="Black out any monitor instantly on Windows without moving windows or changing your display layout."
+    />
+    <meta name="twitter:image" content="https://nocturn.lannes.dev/assets/preview-1.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Nocturn",
+        "applicationCategory": "UtilityApplication",
+        "operatingSystem": "Windows",
+        "description": "Nocturn is a lightweight screen blackout app for Windows that lets you black out any monitor instantly without moving windows or changing your display layout.",
+        "url": "https://nocturn.lannes.dev/",
+        "image": "https://nocturn.lannes.dev/assets/preview-1.png",
+        "downloadUrl": "https://github.com/HugoLannes/Nocturn/releases/latest",
+        "author": {
+          "@type": "Person",
+          "name": "Hugo Lannes"
+        },
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "sameAs": ["https://github.com/HugoLannes/Nocturn"]
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="./assets/nocturn-mark.svg" />
+    <link rel="canonical" href="https://nocturn.lannes.dev/" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="aurora aurora-left" aria-hidden="true"></div>
+      <div class="aurora aurora-right" aria-hidden="true"></div>
+      <div class="grid-haze" aria-hidden="true"></div>
+
+      <header class="site-header container">
+        <a class="brand" href="#top" aria-label="Nocturn homepage">
+          <img src="./assets/nocturn-mark.svg" alt="" />
+          <span>Nocturn</span>
+        </a>
+
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#workflow">How it works</a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="github-badge" href="https://github.com/HugoLannes/Nocturn" aria-label="View Nocturn on GitHub">
+            <span class="github-badge-main">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 0.5C5.37 0.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.38 0.6 0.11 0.82-0.26 0.82-0.58 0-0.29-0.01-1.04-0.02-2.04-3.34 0.73-4.04-1.61-4.04-1.61-0.55-1.39-1.33-1.77-1.33-1.77-1.09-0.74 0.08-0.73 0.08-0.73 1.2 0.09 1.84 1.24 1.84 1.24 1.08 1.84 2.82 1.31 3.5 1 0.11-0.78 0.42-1.31 0.77-1.61-2.66-0.3-5.47-1.33-5.47-5.93 0-1.31 0.47-2.38 1.24-3.22-0.12-0.31-0.54-1.52 0.12-3.17 0 0 1.01-0.32 3.3 1.23A11.45 11.45 0 0 1 12 6.32c1.02 0 2.05 0.14 3 0.41 2.29-1.55 3.29-1.23 3.29-1.23 0.66 1.65 0.25 2.86 0.12 3.17 0.77 0.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.62-5.49 5.92 0.43 0.38 0.82 1.1 0.82 2.22 0 1.61-0.01 2.9-0.01 3.3 0 0.32 0.22 0.7 0.83 0.58C20.57 22.29 24 17.8 24 12.5 24 5.87 18.63 0.5 12 0.5Z"
+                ></path>
+              </svg>
+              <span>GitHub</span>
+            </span>
+            <span class="github-badge-stars" aria-label="5 GitHub stars">
+              <span aria-hidden="true">★</span>
+              <span>5</span>
+            </span>
+          </a>
+          <a class="primary-button" href="https://github.com/HugoLannes/Nocturn/releases/latest">Download latest</a>
+        </div>
+      </header>
+
+      <main id="top">
+        <section class="hero container">
+          <div class="hero-copy reveal reveal-delay-1">
+            <p class="eyebrow">Windows screen blackout app for multi-monitor setups</p>
+            <h1>
+              <span class="hero-line"><span class="hero-word-nocturn">Nocturn</span> blacks out</span>
+              <span class="hero-line">screen instantly.</span>
+              <span class="hero-line">Keep the rest</span>
+              <span class="hero-line">of your setup</span>
+              <span class="hero-line">untouched.</span>
+            </h1>
+            <p class="hero-lead">
+              Nocturn is a lightweight Windows utility that blacks out selected monitors instantly without changing your desktop layout.
+            </p>
+
+            <ul class="hero-meta" aria-label="Product highlights">
+              <li>
+                <span class="hero-meta-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      fill="currentColor"
+                      d="M1 3.5 10 2v9H1v-7.5Zm10 7.5V1.88L23 0v11H11Zm-10 1H10v9L1 19.5V12Zm10 0H23v11l-12-1.88V12Z"
+                    ></path>
+                  </svg>
+                </span>
+                <span>Windows</span>
+              </li>
+              <li>OLED compatible</li>
+              <li>Native overlays</li>
+            </ul>
+          </div>
+
+          <div class="hero-visual reveal reveal-delay-2" data-parallax-root>
+            <div class="preview-frame">
+              <div class="preview-orb preview-orb-primary" aria-hidden="true"></div>
+              <div class="preview-orb preview-orb-secondary" aria-hidden="true"></div>
+              <div class="preview-media">
+                <img
+                  class="preview-image"
+                  src="./assets/appview.png"
+                  alt="Nocturn app showing display blackout controls"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- <section class="stats container reveal reveal-delay-3" aria-label="Core product benefits">
+          <article class="stat-card">
+            <span class="stat-label">Behavior</span>
+            <strong>Instant blackout</strong>
+            <p>Drop extra light in a click, not with a cable dance.</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Display safety</span>
+            <strong>At least one screen stays active</strong>
+            <p>The app protects you from blacking out your whole setup by accident.</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">Panel friendly</span>
+            <strong>Pure black for OLED</strong>
+            <p>Ideal for night work, spare displays, and low-glow desks.</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-label">License</span>
+            <strong>Public and hackable</strong>
+            <p>Browse the code, open issues, build from source, ship improvements.</p>
+          </article>
+        </section> -->
+
+        <section id="features" class="section container">
+          <div class="section-heading reveal reveal-delay-1">
+            <p class="eyebrow">Why people use it</p>
+            <h2>OLED friendly, stable, lightweight.</h2>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card feature-card-primary reveal reveal-delay-1">
+              <div class="feature-card-top">
+                <span class="feature-kicker">Pure black output</span>
+              </div>
+
+              <div class="feature-copy">
+                <h3>Compatible OLED</h3>
+                <p>Pure black on the panel, without the glow of a dimmed screen.</p>
+              </div>
+
+              <div class="feature-card-foot">
+                <span class="feature-chip">Pure black</span>
+                <span class="feature-chip feature-chip-subtle">Made for night setups</span>
+              </div>
+            </article>
+
+            <article class="feature-card feature-card-stable reveal reveal-delay-2">
+              <div class="feature-card-top">
+                <span class="feature-kicker">Desktop stays in place</span>
+              </div>
+
+              <div class="feature-copy">
+                <h3>No layout reshuffle</h3>
+                <p>Windows stay where they are. Your monitor layout does not move.</p>
+              </div>
+
+              <div class="feature-card-foot">
+                <span class="feature-chip">Topology preserved</span>
+                <span class="feature-chip feature-chip-subtle">No window jump</span>
+              </div>
+            </article>
+
+            <article class="feature-card feature-card-wake reveal reveal-delay-3">
+              <div class="feature-card-top">
+                <span class="feature-kicker">No extra weight</span>
+              </div>
+
+              <div class="feature-copy">
+                <h3>Straightforward and lightweight</h3>
+                <p>Small tray app. Pick a screen, toggle it, move on.</p>
+              </div>
+
+              <div class="feature-card-foot">
+                <span class="feature-chip">Quick to use</span>
+                <span class="feature-chip feature-chip-subtle">No account</span>
+              </div>
+            </article>
+
+            <article class="feature-card feature-card-local reveal reveal-delay-4">
+              <div class="feature-card-top">
+                <span class="feature-kicker">Shortcuts and overlay labels</span>
+              </div>
+
+              <div class="feature-copy">
+                <h3>Custom hotkeys</h3>
+                <p>Set your own shortcuts and see which apps each overlay is hiding.</p>
+              </div>
+
+              <div class="feature-card-foot">
+                <span class="feature-chip">Per action</span>
+                <span class="feature-chip feature-chip-subtle">Hidden app labels</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="workflow" class="section container workflow-section">
+          <div class="section-heading reveal reveal-delay-1">
+            <p class="eyebrow">How it works</p>
+            <h2>Install. Pick. Toggle.</h2>
+          </div>
+
+          <div class="workflow-grid">
+            <article class="workflow-card reveal reveal-delay-1">
+              <span class="workflow-step">Step 1</span>
+              <h3>Install Nocturn</h3>
+            </article>
+
+            <article class="workflow-card reveal reveal-delay-2">
+              <span class="workflow-step">Step 2</span>
+              <h3>Choose the displays</h3>
+            </article>
+
+            <article class="workflow-card reveal reveal-delay-3">
+              <span class="workflow-step">Step 3</span>
+              <h3>Rest your eyes</h3>
+            </article>
+          </div>
+        </section>
+
+      </main>
+
+      <footer class="site-footer container">
+        <div class="footer-brand">
+          <img src="./assets/nocturn-mark.svg" alt="" />
+          <div>
+            <strong>Nocturn</strong>
+            <span>Night mode, softly.</span>
+          </div>
+        </div>
+
+        <div class="footer-links">
+          <a href="https://github.com/HugoLannes/Nocturn">GitHub</a>
+          <a href="https://github.com/HugoLannes/Nocturn/releases/latest">Releases</a>
+          <a href="https://github.com/HugoLannes/Nocturn/issues">Issues</a>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (() => {
+        const parallaxRoot = document.querySelector("[data-parallax-root]");
+        const frame = parallaxRoot?.querySelector(".preview-frame");
+
+        if (!parallaxRoot || !frame) {
+          return;
+        }
+
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)");
+
+        const resetFrame = () => {
+          frame.style.setProperty("--parallax-x", "0px");
+          frame.style.setProperty("--parallax-y", "0px");
+          frame.style.setProperty("--parallax-rx", "0deg");
+          frame.style.setProperty("--parallax-ry", "0deg");
+          frame.style.setProperty("--parallax-glow-x", "0px");
+          frame.style.setProperty("--parallax-glow-y", "0px");
+        };
+
+        const updateFrame = (event) => {
+          if (reducedMotion.matches || coarsePointer.matches) {
+            resetFrame();
+            return;
+          }
+
+          const bounds = parallaxRoot.getBoundingClientRect();
+          const px = (event.clientX - bounds.left) / bounds.width;
+          const py = (event.clientY - bounds.top) / bounds.height;
+          const nx = (px - 0.5) * 2;
+          const ny = (py - 0.5) * 2;
+
+          frame.style.setProperty("--parallax-x", `${nx * 18}px`);
+          frame.style.setProperty("--parallax-y", `${ny * 14}px`);
+          frame.style.setProperty("--parallax-rx", `${-ny * 5}deg`);
+          frame.style.setProperty("--parallax-ry", `${nx * 7}deg`);
+          frame.style.setProperty("--parallax-glow-x", `${nx * 32}px`);
+          frame.style.setProperty("--parallax-glow-y", `${ny * 24}px`);
+        };
+
+        parallaxRoot.addEventListener("pointermove", updateFrame);
+        parallaxRoot.addEventListener("pointerleave", resetFrame);
+        reducedMotion.addEventListener("change", resetFrame);
+        coarsePointer.addEventListener("change", resetFrame);
+        resetFrame();
+      })();
+    </script>
+  </body>
+</html>

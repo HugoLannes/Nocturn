@@ -1,7 +1,7 @@
 {
   "name": "nocturn",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Nocturn desktop application",
   "scripts": {
     "dev": "vite",
@@ -13,16 +13,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HugoLannes/nocturn.git"
+    "url": "git+https://github.com/HugoLannes/Nocturn.git"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/HugoLannes/nocturn/issues"
+    "url": "https://github.com/HugoLannes/Nocturn/issues"
   },
-  "homepage": "https://github.com/HugoLannes/nocturn#readme",
+  "homepage": "https://github.com/HugoLannes/Nocturn#readme",
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-global-shortcut": "^2.3.1",
