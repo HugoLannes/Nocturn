@@ -37,6 +37,18 @@ Useful at night, during focused work, or anytime a spare monitor is just extra l
 
 Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/nocturn/releases/latest).
 
+## Website
+
+The public landing page lives in `docs/` and is intended to ship on GitHub Pages at `https://nocturn.lannes.dev`.
+
+For GitHub Pages, use:
+
+- **Source**: Deploy from a branch
+- **Branch**: `main`
+- **Folder**: `/docs`
+
+The custom domain is tracked in `docs/CNAME`.
+
 ## Build from source
 
 Nocturn is built with [Tauri 2](https://tauri.app/), React, and Rust.
