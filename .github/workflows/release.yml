@@ -96,12 +96,12 @@ jobs:
 
           const cargoPath = 'src-tauri/Cargo.toml';
           const cargo = fs.readFileSync(cargoPath, 'utf8');
-          const stampedCargo = cargo.replace(/^version\s*=\s*"[^"]+"/m, `version = "${version}"`);
-          if (stampedCargo === cargo) {
-            console.error('Could not stamp version into src-tauri/Cargo.toml.');
+          const cargoVersionRe = /^version\s*=\s*"[^"]+"/m;
+          if (!cargoVersionRe.test(cargo)) {
+            console.error('Could not find a version field to stamp in src-tauri/Cargo.toml.');
             process.exit(1);
           }
-          fs.writeFileSync(cargoPath, stampedCargo);
+          fs.writeFileSync(cargoPath, cargo.replace(cargoVersionRe, `version = "${version}"`));
 
           fs.appendFileSync(process.env.GITHUB_ENV, `APP_VERSION=${version}\n`);
           console.log(`Next release version: ${version}`);
