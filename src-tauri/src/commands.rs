@@ -77,8 +77,7 @@ pub fn set_allow_cursor_exit_active_displays(
     }
 
     sync_runtime_behaviors(state.inner());
-    emit_displays_update(&app, state.inner())?;
-    build_payload(&app, state.inner())
+    emit_and_return_payload(&app, state.inner())
 }
 
 #[command]
@@ -103,8 +102,7 @@ pub fn set_show_overlay_hidden_apps(
         return Err(error);
     }
 
-    emit_displays_update(&app, state.inner())?;
-    build_payload(&app, state.inner())
+    emit_and_return_payload(&app, state.inner())
 }
 
 #[command]
@@ -133,9 +131,16 @@ pub fn set_shortcut_settings(
         state.settings = next_settings.clone();
     }
 
-    if let Err(error) = shortcuts::sync_registered_shortcuts(&app, state.inner()) {
-        restore_previous_settings(&app, state.inner(), &previous_settings);
-        return Err(error);
+    match shortcuts::sync_registered_shortcuts(&app, state.inner()) {
+        Ok(failures) if !failures.is_empty() => {
+            restore_previous_settings(&app, state.inner(), &previous_settings);
+            return Err(failures.join(" "));
+        }
+        Ok(_) => {}
+        Err(error) => {
+            restore_previous_settings(&app, state.inner(), &previous_settings);
+            return Err(error);
+        }
     }
 
     if let Err(error) = settings::save_settings(&app, &next_settings) {
@@ -143,8 +148,7 @@ pub fn set_shortcut_settings(
         return Err(error);
     }
 
-    emit_displays_update(&app, state.inner())?;
-    build_payload(&app, state.inner())
+    emit_and_return_payload(&app, state.inner())
 }
 
 #[command]
@@ -167,16 +171,26 @@ pub fn reset_to_defaults(
         state.settings = next_settings;
     }
 
-    let _ = shortcuts::ensure_default_shortcuts(&app, state.inner())?;
+    if let Err(error) = shortcuts::ensure_default_shortcuts(&app, state.inner()) {
+        restore_previous_settings(&app, state.inner(), &previous_settings);
+        return Err(error);
+    }
 
     let current_settings = {
         let state = state.lock().expect("state poisoned");
         state.settings.clone()
     };
 
-    if let Err(error) = shortcuts::sync_registered_shortcuts(&app, state.inner()) {
-        restore_previous_settings(&app, state.inner(), &previous_settings);
-        return Err(error);
+    match shortcuts::sync_registered_shortcuts(&app, state.inner()) {
+        Ok(failures) => {
+            for failure in &failures {
+                warn!("reset_to_defaults: {failure}");
+            }
+        }
+        Err(error) => {
+            restore_previous_settings(&app, state.inner(), &previous_settings);
+            return Err(error);
+        }
     }
 
     if let Err(error) = settings::save_settings(&app, &current_settings) {
@@ -185,8 +199,7 @@ pub fn reset_to_defaults(
     }
 
     sync_runtime_behaviors(state.inner());
-    emit_displays_update(&app, state.inner())?;
-    build_payload(&app, state.inner())
+    emit_and_return_payload(&app, state.inner())
 }
 
 #[command]
@@ -262,8 +275,11 @@ pub fn hide_window(app: AppHandle) -> Result<(), String> {
 }
 
 #[command]
-pub fn close_app(app: AppHandle) {
-    app.exit(0);
+pub fn close_app(app: AppHandle) -> Result<(), String> {
+    // Nocturn is tray-resident: the titlebar's Close button hides the panel
+    // rather than exiting the process, matching the OS-level CloseRequested
+    // handler in main.rs. Use "Quit" from the tray context menu to exit.
+    panel::hide_panel(&app)
 }
 
 pub fn unblank_all_internal(app: &AppHandle, state: &SharedState) -> Result<(), String> {
@@ -551,7 +567,10 @@ pub fn refresh_display_snapshot(app: &AppHandle, state: &SharedState) -> Result<
     refresh_displays(app, state)?;
     let shortcuts_initialized = shortcuts::ensure_default_shortcuts(app, state)?;
     if !shortcuts_initialized {
-        shortcuts::sync_registered_shortcuts(app, state)?;
+        let failures = shortcuts::sync_registered_shortcuts(app, state)?;
+        for failure in &failures {
+            warn!("refresh_display_snapshot: {failure}");
+        }
     }
     sync_runtime_behaviors(state);
     emit_displays_update(app, state)
@@ -567,11 +586,18 @@ fn restore_previous_settings(
         state.settings = previous_settings.clone();
     }
 
-    if let Err(error) = shortcuts::sync_registered_shortcuts(app, state) {
-        error!(
-            "restore_previous_settings: failed to restore shortcuts: {}",
-            error
-        );
+    match shortcuts::sync_registered_shortcuts(app, state) {
+        Ok(failures) => {
+            for failure in &failures {
+                warn!("restore_previous_settings: {failure}");
+            }
+        }
+        Err(error) => {
+            error!(
+                "restore_previous_settings: failed to restore shortcuts: {}",
+                error
+            );
+        }
     }
 }
 
@@ -579,6 +605,21 @@ fn emit_displays_update(app: &AppHandle, state: &SharedState) -> Result<(), Stri
     let payload = build_payload(app, state)?;
     app.emit("displays-update", payload)
         .map_err(|error| error.to_string())
+}
+
+/// Builds the payload once, emits it as `displays-update`, and returns the
+/// same value for the command to resolve with. `build_payload` is
+/// side-effectful (window enumeration, overlay card sync), so callers that
+/// need both an emitted update and a return value must share a single build
+/// rather than calling `build_payload` a second time.
+fn emit_and_return_payload(
+    app: &AppHandle,
+    state: &SharedState,
+) -> Result<DisplayUpdatePayload, String> {
+    let payload = build_payload(app, state)?;
+    app.emit("displays-update", payload.clone())
+        .map_err(|error| error.to_string())?;
+    Ok(payload)
 }
 
 fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePayload, String> {
@@ -605,7 +646,21 @@ fn build_payload(app: &AppHandle, state: &SharedState) -> Result<DisplayUpdatePa
         .filter(|display| display.is_blacked_out)
         .count();
     let panel_display_id = current_panel_display_id(app, &displays_map);
-    let hidden_apps_by_display = window_inventory::snapshot_hidden_apps_by_display(&displays_map)?;
+    // Window enumeration is only needed to label hidden apps on overlay cards;
+    // skip it when that's switched off, and never let a transient EnumWindows
+    // failure fail the whole command (and thus leave state/UI out of sync
+    // with an overlay that already exists) — degrade to an empty map instead.
+    let hidden_apps_by_display = if show_overlay_hidden_apps {
+        match window_inventory::snapshot_hidden_apps_by_display(&displays_map) {
+            Ok(hidden_apps) => hidden_apps,
+            Err(error) => {
+                warn!("build_payload: hidden app snapshot failed: {}", error);
+                HashMap::new()
+            }
+        }
+    } else {
+        HashMap::new()
+    };
     let overlay_presentations = build_overlay_presentations(
         &displays_map,
         &hidden_apps_by_display,
@@ -795,8 +850,15 @@ fn current_panel_display_id(
         return None;
     };
 
-    let center_x = pos.x + (panel::PANEL_WIDTH / 2);
-    let center_y = pos.y + (panel::PANEL_HEIGHT / 2);
+    let Ok(size) = panel.outer_size() else {
+        warn!("current_panel_display_id: failed to get panel outer size");
+        return None;
+    };
+
+    // outer_size() is physical pixels (unlike the logical PANEL_WIDTH/HEIGHT
+    // constants), so this stays correct on scaled monitors.
+    let center_x = pos.x + (size.width as i32 / 2);
+    let center_y = pos.y + (size.height as i32 / 2);
 
     let result = displays
         .values()
@@ -829,6 +891,57 @@ fn choose_fallback_display(state: &SharedState, target_id: &str) -> Result<Displ
     Ok(fallback)
 }
 
+/// If the panel is currently sitting on a display that's blacked out, moves it
+/// to the nearest active display. `toggle_display_internal` only relocates the
+/// panel when it's visible at blackout time, so a hidden panel left on a
+/// display that gets blacked out (e.g. via a global shortcut) stays there;
+/// call this before showing the panel again (tray click / "Show Panel") so it
+/// doesn't reappear lit up in the middle of a supposedly dark screen.
+pub fn relocate_panel_off_blacked_out_display(
+    app: &AppHandle,
+    state: &SharedState,
+) -> Result<(), String> {
+    let Some(panel) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+
+    let Ok(pos) = panel.outer_position() else {
+        return Ok(());
+    };
+
+    let Ok(size) = panel.outer_size() else {
+        return Ok(());
+    };
+
+    let center_x = pos.x + (size.width as i32 / 2);
+    let center_y = pos.y + (size.height as i32 / 2);
+
+    let current_display = {
+        let state = state.lock().expect("state poisoned");
+        state
+            .displays
+            .values()
+            .find(|display| {
+                center_x >= display.x
+                    && center_x < display.x + display.width as i32
+                    && center_y >= display.y
+                    && center_y < display.y + display.height as i32
+            })
+            .cloned()
+    };
+
+    let Some(current_display) = current_display else {
+        return Ok(());
+    };
+
+    if !current_display.is_blacked_out {
+        return Ok(());
+    }
+
+    let fallback = choose_fallback_display(state, &current_display.id)?;
+    panel::move_panel_to_display(app, &fallback)
+}
+
 fn panel_is_on_display(app: &AppHandle, display: &DisplayState) -> bool {
     let Some(panel) = app.get_webview_window("main") else {
         return false;
@@ -843,9 +956,16 @@ fn panel_is_on_display(app: &AppHandle, display: &DisplayState) -> bool {
         return false;
     };
 
-    // Use the panel center to determine which display it belongs to
-    let center_x = pos.x + (panel::PANEL_WIDTH / 2);
-    let center_y = pos.y + (panel::PANEL_HEIGHT / 2);
+    let Ok(size) = panel.outer_size() else {
+        warn!("panel_is_on_display: failed to get panel outer size");
+        return false;
+    };
+
+    // Use the panel center (in physical pixels, via outer_size()) to determine
+    // which display it belongs to. PANEL_WIDTH/HEIGHT are logical and would
+    // drift from the true center on any monitor scaled above 100%.
+    let center_x = pos.x + (size.width as i32 / 2);
+    let center_y = pos.y + (size.height as i32 / 2);
 
     let is_on_display = center_x >= display.x
         && center_x < display.x + display.width as i32

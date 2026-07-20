@@ -896,10 +896,6 @@ a {
     justify-content: flex-start;
   }
 
-  .site-nav {
-    display: none;
-  }
-
   .hero {
     grid-template-columns: 1fr;
     gap: 30px;

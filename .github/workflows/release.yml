@@ -109,5 +109,20 @@ jobs:
           releaseName: Nocturn v__VERSION__
           releaseBody: |
             See the assets attached to this release to install or auto-update Nocturn.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
+
+      - name: Publish release once assets are verified
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${APP_VERSION}"
+          assets="$(gh release view "$tag" --json assets --jq '.assets[].name')"
+
+          if ! echo "$assets" | grep -qx "latest.json"; then
+            echo "latest.json is missing from release ${tag}; leaving the release as a draft." >&2
+            exit 1
+          fi
+
+          gh release edit "$tag" --draft=false

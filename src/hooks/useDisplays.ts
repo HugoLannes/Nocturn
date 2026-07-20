@@ -78,13 +78,19 @@ export function useDisplays() {
   const [state, setState] = useState<UseDisplaysState>(INITIAL_STATE);
   const [isMutating, setIsMutating] = useState(false);
   const [pendingDisplayIds, setPendingDisplayIds] = useState<ReadonlySet<string>>(new Set<string>());
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const loadDisplays = useCallback(async () => {
+    setState((current) => ({ ...current, isLoading: true }));
+
     try {
       const payload = await withTimeout(invoke<DisplayUpdatePayload>("get_displays"), "Loading displays");
       setState((current) => applyPayload(current, payload));
+      setLoadError(null);
     } catch (error) {
       console.error("Failed to load displays:", error);
+      setLoadError(getErrorMessage(error));
       setState((current) => ({
         ...current,
         isLoading: false,
@@ -109,6 +115,7 @@ export function useDisplays() {
   }, [loadDisplays]);
 
   const toggleDisplay = useCallback(async (displayId: string) => {
+    setMutationError(null);
     setPendingDisplayIds((prev) => new Set([...prev, displayId]));
 
     // Optimistic update: flip the display state immediately so the UI responds
@@ -135,24 +142,13 @@ export function useDisplays() {
       await withTimeout(invoke<string>("toggle_display", { id: displayId }), "Toggling display");
     } catch (error) {
       console.error(`Failed to toggle display ${displayId}:`, error);
-      // Revert the optimistic update on failure.
-      setState((current) => {
-        const display = current.displays.find((d) => d.id === displayId);
-        if (!display) return current;
-        const revertToBlackedOut = !display.isBlackedOut;
-        return {
-          ...current,
-          displays: current.displays.map((d) =>
-            d.id === displayId ? { ...d, isBlackedOut: revertToBlackedOut } : d,
-          ),
-          activeDisplayCount: revertToBlackedOut
-            ? current.activeDisplayCount - 1
-            : current.activeDisplayCount + 1,
-          blackoutCount: revertToBlackedOut
-            ? current.blackoutCount + 1
-            : current.blackoutCount - 1,
-        };
-      });
+      setMutationError(getErrorMessage(error));
+      // Don't manually revert the optimistic flip here: by the time this
+      // rejects (e.g. the 5s client-side timeout while the backend toggle is
+      // still running), an authoritative "displays-update" event may have
+      // already applied the real outcome, and blindly re-flipping on top of
+      // that would corrupt state and cause a visible flicker. Re-sync from
+      // the backend instead, same as every other mutator in this hook.
       void loadDisplays();
     } finally {
       setPendingDisplayIds((prev) => {
@@ -165,11 +161,13 @@ export function useDisplays() {
 
   const restoreAllDisplays = useCallback(async () => {
     setIsMutating(true);
+    setMutationError(null);
 
     try {
       await withTimeout(invoke("unblank_all"), "Restoring displays");
     } catch (error) {
       console.error("Failed to restore displays:", error);
+      setMutationError(getErrorMessage(error));
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -178,11 +176,13 @@ export function useDisplays() {
 
   const focusPrimary = useCallback(async () => {
     setIsMutating(true);
+    setMutationError(null);
 
     try {
       await withTimeout(invoke("focus_primary"), "Toggling focus mode");
     } catch (error) {
       console.error("Failed to toggle focus mode:", error);
+      setMutationError(getErrorMessage(error));
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -191,6 +191,7 @@ export function useDisplays() {
 
   const setAllowCursorExitActiveDisplays = useCallback(async (allowed: boolean) => {
     setIsMutating(true);
+    setMutationError(null);
 
     try {
       const payload = await withTimeout(
@@ -201,6 +202,7 @@ export function useDisplays() {
       setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to update cursor setting:", error);
+      setMutationError(getErrorMessage(error));
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -209,6 +211,7 @@ export function useDisplays() {
 
   const setShowOverlayHiddenApps = useCallback(async (enabled: boolean) => {
     setIsMutating(true);
+    setMutationError(null);
 
     try {
       const payload = await withTimeout(
@@ -219,6 +222,7 @@ export function useDisplays() {
       setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to update overlay app labels:", error);
+      setMutationError(getErrorMessage(error));
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -227,6 +231,7 @@ export function useDisplays() {
 
   const resetToDefaults = useCallback(async () => {
     setIsMutating(true);
+    setMutationError(null);
 
     try {
       const payload = await withTimeout(
@@ -237,6 +242,7 @@ export function useDisplays() {
       setState((current) => applyPayload(current, payload));
     } catch (error) {
       console.error("Failed to reset to defaults:", error);
+      setMutationError(getErrorMessage(error));
       void loadDisplays();
     } finally {
       setIsMutating(false);
@@ -272,10 +278,17 @@ export function useDisplays() {
     return activeDisplay?.id ?? null;
   }, [state.activeDisplayCount, state.displays]);
 
+  const clearMutationError = useCallback(() => {
+    setMutationError(null);
+  }, []);
+
   return {
     ...state,
     isMutating,
     pendingDisplayIds,
+    loadError,
+    mutationError,
+    clearMutationError,
     loadDisplays,
     toggleDisplay,
     restoreAllDisplays,

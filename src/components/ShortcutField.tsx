@@ -153,13 +153,36 @@ export function ShortcutField({
       return;
     }
 
+    if (event.nativeEvent.code === "Escape" && !hasHeldModifier(event.nativeEvent)) {
+      cancelCapture();
+      return;
+    }
+
     const accelerator = buildAcceleratorFromHeldCodes(heldCodes.current, event.nativeEvent);
     if (!accelerator) {
       setErrorMessage("This key is not supported as a global shortcut.");
       return;
     }
 
+    setErrorMessage(null);
     void submitShortcut(accelerator);
+  }
+
+  function hasHeldModifier(event: KeyboardEvent) {
+    return (
+      event.ctrlKey ||
+      event.altKey ||
+      event.shiftKey ||
+      event.metaKey ||
+      heldCodes.current.has("ControlLeft") ||
+      heldCodes.current.has("ControlRight") ||
+      heldCodes.current.has("AltLeft") ||
+      heldCodes.current.has("AltRight") ||
+      heldCodes.current.has("ShiftLeft") ||
+      heldCodes.current.has("ShiftRight") ||
+      heldCodes.current.has("MetaLeft") ||
+      heldCodes.current.has("MetaRight")
+    );
   }
 
   const isDisabled = disabled || isSaving;
@@ -186,11 +209,16 @@ export function ShortcutField({
       <div className="flex shrink-0 items-center gap-2 max-[560px]:justify-end">
         {isCapturing ? (
           <>
-            <span className="animate-pulse text-[12px] text-[var(--accent-soft)]" style={monoTextStyle}>
-              Press any key...
+            <span
+              className="animate-pulse text-[12px] text-[var(--accent-soft)]"
+              style={monoTextStyle}
+              role={errorMessage ? "alert" : "status"}
+              aria-live={errorMessage ? "assertive" : "polite"}
+            >
+              {errorMessage ?? "Press any key..."}
             </span>
             <span className="text-[10px] text-[rgba(226,232,240,0.36)]" style={monoTextStyle}>
-              Click outside to cancel
+              Esc or click outside to cancel
             </span>
             <button
               ref={triggerRef}
@@ -204,11 +232,18 @@ export function ShortcutField({
         ) : (
           <>
             {errorMessage ? (
-              <span className="text-[11px] text-[#fca5a5]">{errorMessage}</span>
+              <span className="text-[11px] text-[#fca5a5]" role="alert" aria-live="assertive">
+                {errorMessage}
+              </span>
             ) : null}
 
             {feedbackState === "saved" ? (
-              <span className="text-[10px] uppercase tracking-[0.08em] text-[#6ee7b7]" style={monoTextStyle}>
+              <span
+                className="text-[10px] uppercase tracking-[0.08em] text-[#6ee7b7]"
+                style={monoTextStyle}
+                role="status"
+                aria-live="polite"
+              >
                 Saved
               </span>
             ) : null}

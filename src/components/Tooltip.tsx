@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId, type CSSProperties, type ReactElement } from "react";
+import { cloneElement, isValidElement, useId, useState, type CSSProperties, type KeyboardEvent, type ReactElement } from "react";
 import { cn } from "../ui";
 
 type TooltipProps = {
@@ -30,6 +30,7 @@ export function Tooltip({
   children,
 }: TooltipProps) {
   const tooltipId = useId();
+  const [isForceHidden, setIsForceHidden] = useState(false);
 
   if (!isValidElement(children)) {
     return null;
@@ -43,8 +44,23 @@ export function Tooltip({
     ? "bottom-[calc(100%+12px)] -translate-x-1/2 translate-y-[6px] motion-reduce:translate-y-0"
     : "top-[calc(100%+12px)] -translate-x-1/2 -translate-y-[6px] motion-reduce:translate-y-0";
 
+  function handleKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
+    if (event.key === "Escape") {
+      setIsForceHidden(true);
+    }
+  }
+
+  function clearForceHidden() {
+    setIsForceHidden(false);
+  }
+
   return (
-    <span className="group relative isolate inline-flex">
+    <span
+      className="group relative isolate inline-flex"
+      onKeyDown={handleKeyDown}
+      onFocus={clearForceHidden}
+      onMouseEnter={clearForceHidden}
+    >
       {cloneElement(children, {
         "aria-describedby": describedBy,
       })}
@@ -53,7 +69,13 @@ export function Tooltip({
         id={tooltipId}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-1/2 z-30 min-w-[188px] max-w-[240px] rounded-[14px] border border-white/8 px-3 py-[10px] opacity-0 invisible scale-[0.98] transition-[opacity,transform,visibility] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:visible group-hover:opacity-100 group-hover:scale-100 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:scale-100 motion-reduce:scale-100 motion-reduce:transition-[opacity,visibility] motion-reduce:duration-[120ms]",
+          "pointer-events-none absolute left-1/2 z-30 min-w-[188px] max-w-[240px] rounded-[14px] border border-white/8 px-3 py-[10px] opacity-0 invisible scale-[0.98] transition-[opacity,transform,visibility] duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:scale-100 motion-reduce:transition-[opacity,visibility] motion-reduce:duration-[120ms]",
+          // Escape hides the tooltip without moving focus (WCAG 1.4.13); the
+          // group-hover/group-focus-within reveal classes are simply omitted
+          // while force-hidden, so the underlying :hover/:focus-within state
+          // on the wrapper can't override it. Cleared on next focus or hover.
+          !isForceHidden &&
+            "group-hover:visible group-hover:opacity-100 group-hover:scale-100 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:scale-100",
           bubblePositionClass,
         )}
         style={tooltipBubbleStyle}

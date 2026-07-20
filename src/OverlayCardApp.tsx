@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { HiddenAppSummary, OverlayCardPresentation } from "./types";
@@ -64,9 +63,12 @@ export function OverlayCardApp() {
       }
     });
 
-    const unlistenPromise = listen<OverlayCardPresentation>("overlay-card:update", (event) => {
-      setPresentation(event.payload);
-    });
+    const unlistenPromise = currentWindow.listen<OverlayCardPresentation>(
+      "overlay-card:update",
+      (event) => {
+        setPresentation(event.payload);
+      },
+    );
 
     return () => {
       isMounted = false;

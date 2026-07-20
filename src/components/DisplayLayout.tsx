@@ -13,11 +13,14 @@ type DisplayLayoutProps = {
   displays: Display[];
   headline: string;
   isMutating: boolean;
+  isLoading: boolean;
+  loadError: string | null;
   pendingDisplayIds: ReadonlySet<string>;
   lastActiveDisplayId: string | null;
   focusModeHotkey: string | null;
   onFocusMode: () => void;
   onToggle: (displayId: string) => void;
+  onRetry: () => void;
 };
 
 const displayFrameStyle = {
@@ -81,6 +84,12 @@ function displayRoleTags(display: Display): string[] {
   ].filter((tag): tag is string => Boolean(tag));
 }
 
+function guardReason(isLastActive: boolean, canBlackout: boolean): string | null {
+  if (isLastActive) return "kept active as a safety guard so at least one display stays on";
+  if (!canBlackout) return "blackout is not supported on this display";
+  return null;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -113,14 +122,36 @@ export function DisplayLayout({
   displays,
   headline,
   isMutating,
+  isLoading,
+  loadError,
   pendingDisplayIds,
   lastActiveDisplayId,
   focusModeHotkey,
   onFocusMode,
   onToggle,
+  onRetry,
 }: DisplayLayoutProps) {
   if (displays.length === 0) {
-    return null;
+    return (
+      <section className="flex h-full min-h-0 flex-col items-center justify-center gap-3 px-6 text-center" aria-label="Display arrangement">
+        <span className={layoutEyebrowClass} style={monoTextStyle}>Display control</span>
+        <p className="max-w-[320px] text-[13px] leading-[1.5] text-[var(--text-secondary)]">
+          {loadError
+            ? `Couldn't load your displays. ${loadError}`
+            : isLoading
+              ? "Looking for displays..."
+              : "No displays were detected."}
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={isLoading}
+          className="rounded-[10px] border border-[rgba(var(--accent-rgb),0.34)] bg-[rgba(var(--accent-rgb),0.14)] px-4 py-2 text-[12px] font-semibold text-[var(--accent-soft)] transition-[border-color,background,opacity] duration-[140ms] ease-out enabled:hover:border-[rgba(var(--accent-rgb),0.5)] enabled:hover:bg-[rgba(var(--accent-rgb),0.22)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isLoading ? "Retrying..." : "Retry"}
+        </button>
+      </section>
+    );
   }
 
   const minX = Math.min(...displays.map((display) => display.x));
@@ -167,27 +198,31 @@ export function DisplayLayout({
         </button>
       </header>
 
-      <div
-        className="relative min-h-0 flex-1 overflow-hidden rounded-[14px] border border-[var(--border)] p-[10px] max-[560px]:p-2"
-        style={{ ...displayFrameStyle, aspectRatio: String(mapAspectRatio) }}
-      >
-        <div className="absolute inset-0" style={displayGridStyle} aria-hidden="true" />
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        <div
+          className="relative h-full w-auto max-w-full overflow-hidden rounded-[14px] border border-[var(--border)] p-[10px] max-[560px]:p-2"
+          style={{ ...displayFrameStyle, aspectRatio: String(mapAspectRatio) }}
+        >
+          <div className="absolute inset-0" style={displayGridStyle} aria-hidden="true" />
 
-        <div className="relative h-full w-full">
-          {displays.map((display, index) => {
+          <div className="relative h-full w-full">
+            {displays.map((display, index) => {
             const isLastActive = lastActiveDisplayId === display.id && !display.isBlackedOut;
             const isPending = pendingDisplayIds.has(display.id);
             const shortcutLabel = formatShortcutForDisplay(display.hotkey);
             // isMutating is only true during global ops (focus mode, restore all).
             // Individual card toggles use per-card isPending so other cards stay interactive.
-            const isDisabled = isMutating || isPending || isLastActive || !display.canBlackout;
+            const isBusy = isMutating || isPending;
+            const isGuarded = isLastActive || !display.canBlackout;
+            const reason = guardReason(isLastActive, display.canBlackout);
             const left = ((display.x - minX) / totalWidth) * 100;
             const top = ((display.y - minY) / totalHeight) * 100;
             const width = (display.width / totalWidth) * 100;
             const height = (display.height / totalHeight) * 100;
             const isCompact = width < 30 || height < 42;
             const isTiny = width < 21 || height < 28;
-            const roleTags = displayRoleTags(display);
+            const guardTag = isLastActive ? "Guard" : !display.canBlackout ? "Unsupported" : null;
+            const roleTags = guardTag ? [...displayRoleTags(display), guardTag] : displayRoleTags(display);
             const eyebrowSizeClass = isCompact ? "text-[8px]" : "text-[9px]";
             const nameSizeClass = isTiny ? "text-[10px]" : isCompact ? "text-[11px]" : "text-[12px]";
             const metaSizeClass = isCompact ? "text-[7px]" : "text-[8px]";
@@ -198,7 +233,7 @@ export function DisplayLayout({
                 key={display.id}
                 type="button"
                 className={cn(
-                  "absolute grid min-h-[72px] min-w-[92px] cursor-pointer grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity,transform] duration-120 ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] enabled:active:scale-[0.99] disabled:pointer-events-none disabled:opacity-[0.58] max-[560px]:min-h-[68px] max-[560px]:min-w-[84px] max-[560px]:p-2",
+                  "absolute grid cursor-pointer grid-rows-[auto_1fr_auto] gap-[6px] overflow-hidden rounded-[14px] border p-[10px] text-left text-[#f5f7fb] backdrop-blur-[12px] transition-[border-color,box-shadow,opacity,transform] duration-120 ease-out enabled:hover:border-white/18 enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_rgba(2,6,23,0.22),0_0_0_1px_rgba(255,255,255,0.025)] enabled:active:scale-[0.99] disabled:pointer-events-none disabled:opacity-[0.58] max-[560px]:p-2",
                   isPending
                     ? "border-white/20"
                     : display.isBlackedOut
@@ -206,13 +241,18 @@ export function DisplayLayout({
                       : "border-[rgba(var(--accent-rgb),0.26)]",
                   isCompact && "gap-[5px] p-2",
                   isTiny && "gap-1 p-[7px]",
+                  isGuarded && !isBusy && "cursor-not-allowed opacity-[0.58]",
                 )}
                 style={displayCardStyle(display, isPending, left, top, width, height)}
-                onClick={() => onToggle(display.id)}
-                disabled={isDisabled}
-                aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}${shortcutLabel ? `, shortcut ${shortcutLabel}` : ""}`}
+                onClick={() => {
+                  if (isGuarded) return;
+                  onToggle(display.id);
+                }}
+                disabled={isBusy}
+                aria-disabled={isGuarded || undefined}
+                aria-label={`${cleanName(display.name)} at ${display.width}x${display.height}${shortcutLabel ? `, shortcut ${shortcutLabel}` : ""}${reason ? `, ${reason}` : ""}`}
                 aria-busy={isPending}
-                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}${shortcutLabel ? ` • ${shortcutLabel}` : ""}`}
+                title={`${cleanName(display.name)} • ${display.width}x${display.height} • ${display.x}, ${display.y}${shortcutLabel ? ` • ${shortcutLabel}` : ""}${reason ? ` • ${reason}` : ""}`}
               >
                 <span className={cn("flex items-center justify-between gap-[5px]", isTiny && "items-start")}>
                   <span className={cn(layoutEyebrowClass, eyebrowSizeClass)} style={monoTextStyle}>
@@ -276,7 +316,8 @@ export function DisplayLayout({
                 </span>
               </button>
             );
-          })}
+            })}
+          </div>
         </div>
       </div>
     </section>

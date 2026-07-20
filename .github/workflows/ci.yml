@@ -48,3 +48,6 @@ jobs:
 
       - name: Check Rust backend
         run: cargo check --manifest-path src-tauri/Cargo.toml
+
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml
