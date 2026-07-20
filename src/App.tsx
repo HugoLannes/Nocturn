@@ -1,7 +1,7 @@
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState, type CSSProperties } from "react";
 import appLogo from "./assets/nocturn-mark.svg";
-import packageInfo from "../package.json";
 import { DisplayLayout } from "./components/DisplayLayout";
 import { SettingsPage } from "./components/SettingsPage";
 import { Tooltip } from "./components/Tooltip";
@@ -74,13 +74,17 @@ function wakeButtonClass(isActive: boolean) {
 }
 
 function App() {
-  const appVersion = packageInfo.version;
+  const [appVersion, setAppVersion] = useState("");
   const {
     displays,
     isLoading,
     isMutating,
     pendingDisplayIds,
     blackoutCount,
+    loadError,
+    mutationError,
+    clearMutationError,
+    loadDisplays,
     toggleDisplay,
     restoreAllDisplays,
     focusPrimary,
@@ -130,6 +134,24 @@ function App() {
     updateTooltipTitle = "Update installation failed";
     updateTooltipDescription = updaterErrorMessage ?? "Click to try again.";
   }
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    void getVersion()
+      .then((version) => {
+        if (!isCancelled) {
+          setAppVersion(version);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to read app version:", error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const minimumSplashTimer = window.setTimeout(() => {
@@ -300,14 +322,37 @@ function App() {
             displays={displays}
             headline={displayHeadline}
             isMutating={isMutating}
+            isLoading={isLoading}
+            loadError={loadError}
             pendingDisplayIds={pendingDisplayIds}
             lastActiveDisplayId={lastActiveDisplayId}
             focusModeHotkey={shortcutSettings.focusModeHotkey}
             onFocusMode={() => void focusPrimary()}
             onToggle={(id) => void toggleDisplay(id)}
+            onRetry={() => void loadDisplays()}
           />
         )}
       </main>
+
+      {mutationError && (
+        <div
+          className={cn(
+            "absolute inset-x-3 z-30 flex items-center justify-between gap-3 rounded-[10px] border border-[rgba(248,113,113,0.35)] bg-[rgba(127,29,29,0.92)] px-3 py-2 text-[12px] text-[#fecaca] shadow-[0_10px_24px_rgba(2,6,23,0.35)]",
+            activeView === "settings" ? "bottom-3" : "bottom-[86px]",
+          )}
+          role="alert"
+        >
+          <span className="truncate">{mutationError}</span>
+          <button
+            type="button"
+            onClick={clearMutationError}
+            className="shrink-0 rounded-[6px] px-2 py-1 text-[11px] font-semibold text-[#fecaca] transition-colors duration-[120ms] hover:bg-[rgba(255,255,255,0.08)]"
+            aria-label="Dismiss error"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {activeView !== "settings" && (
         <div className="shrink-0 border-t border-[var(--border)] px-3 pb-3 pt-[10px]">

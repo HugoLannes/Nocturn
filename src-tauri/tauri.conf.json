@@ -18,6 +18,7 @@
         "height": 520,
         "resizable": false,
         "maximizable": false,
+        "minimizable": false,
         "fullscreen": false,
         "visible": true,
         "decorations": false,
@@ -40,7 +41,7 @@
         "frame-ancestors": "'none'"
       },
       "devCsp": null,
-      "capabilities": ["default"]
+      "capabilities": ["default", "overlay-card"]
     }
   },
   "bundle": {

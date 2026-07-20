@@ -88,9 +88,9 @@
               </svg>
               <span>GitHub</span>
             </span>
-            <span class="github-badge-stars" aria-label="5 GitHub stars">
+            <span class="github-badge-stars" data-github-stars aria-label="5 GitHub stars">
               <span aria-hidden="true">★</span>
-              <span>5</span>
+              <span data-github-stars-count>5</span>
             </span>
           </a>
           <a class="primary-button" href="https://github.com/HugoLannes/Nocturn/releases/latest">Download latest</a>
@@ -103,7 +103,7 @@
             <p class="eyebrow">Windows screen blackout app for multi-monitor setups</p>
             <h1>
               <span class="hero-line"><span class="hero-word-nocturn">Nocturn</span> blacks out</span>
-              <span class="hero-line">screen instantly.</span>
+              <span class="hero-line">any screen instantly.</span>
               <span class="hero-line">Keep the rest</span>
               <span class="hero-line">of your setup</span>
               <span class="hero-line">untouched.</span>
@@ -144,7 +144,7 @@
           </div>
         </section>
 
-        <!-- <section class="stats container reveal reveal-delay-3" aria-label="Core product benefits">
+        <section class="stats container reveal reveal-delay-3" aria-label="Core product benefits">
           <article class="stat-card">
             <span class="stat-label">Behavior</span>
             <strong>Instant blackout</strong>
@@ -165,7 +165,7 @@
             <strong>Public and hackable</strong>
             <p>Browse the code, open issues, build from source, ship improvements.</p>
           </article>
-        </section> -->
+        </section>
 
         <section id="features" class="section container">
           <div class="section-heading reveal reveal-delay-1">
@@ -329,6 +329,29 @@
         reducedMotion.addEventListener("change", resetFrame);
         coarsePointer.addEventListener("change", resetFrame);
         resetFrame();
+      })();
+
+      (() => {
+        const badge = document.querySelector("[data-github-stars]");
+        const countEl = document.querySelector("[data-github-stars-count]");
+
+        if (!badge || !countEl) {
+          return;
+        }
+
+        fetch("https://api.github.com/repos/HugoLannes/Nocturn")
+          .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+          .then((data) => {
+            if (typeof data.stargazers_count !== "number") {
+              return;
+            }
+
+            countEl.textContent = String(data.stargazers_count);
+            badge.setAttribute("aria-label", `${data.stargazers_count} GitHub stars`);
+          })
+          .catch(() => {
+            // Keep the hardcoded fallback value already in the markup.
+          });
       })();
     </script>
   </body>

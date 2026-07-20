@@ -3,8 +3,8 @@ use std::{
     ffi::OsStr,
     os::windows::ffi::OsStrExt,
     ptr,
-    sync::{Mutex, OnceLock},
-    thread,
+    sync::{mpsc, Mutex, OnceLock},
+    thread::{self, ThreadId},
 };
 
 use log::{error, info};
@@ -20,12 +20,14 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, IsWindow, RegisterClassW,
         SetWindowPos, ShowWindow, HTCLIENT, HWND_TOPMOST, MA_NOACTIVATEANDEAT, SWP_NOACTIVATE,
-        SWP_SHOWWINDOW, SW_SHOWNA, WM_MOUSEACTIVATE, WM_NCHITTEST, WM_PAINT, WNDCLASSW,
-        WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+        SWP_NOZORDER, SWP_SHOWWINDOW, SW_SHOWNA, WINDOWPOS, WM_MOUSEACTIVATE, WM_NCHITTEST,
+        WM_PAINT, WM_WINDOWPOSCHANGING, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+        WS_EX_TOPMOST, WS_POPUP,
     },
 };
 
 use crate::state::{DisplayState, HiddenAppSummary};
+use crate::window_inventory;
 
 pub const OVERLAY_CLASS_NAME: &str = "NocturnNativeOverlay";
 const MAX_OVERLAY_ROWS: usize = 4;
@@ -65,6 +67,43 @@ static OVERLAY_WINDOWS: OnceLock<Mutex<HashMap<String, OverlayWindowRecord>>> = 
 static OVERLAY_CARD_CACHE: OnceLock<Mutex<HashMap<String, OverlayPresentation>>> = OnceLock::new();
 static OVERLAY_CLASS_ATOM: OnceLock<u16> = OnceLock::new();
 static OVERLAY_CLASS_NAME_WIDE: OnceLock<Vec<u16>> = OnceLock::new();
+static MAIN_THREAD_ID: OnceLock<ThreadId> = OnceLock::new();
+
+/// Records the thread `main()` runs on (the same thread that later drives the
+/// event loop) so overlay operations can tell whether they're already on it.
+/// Must be called once, early in `main()`, before the event loop starts.
+pub fn mark_main_thread() {
+    let _ = MAIN_THREAD_ID.set(thread::current().id());
+}
+
+fn is_main_thread() -> bool {
+    MAIN_THREAD_ID.get() == Some(&thread::current().id())
+}
+
+/// Runs `operation` on the main thread and blocks the calling thread until it
+/// completes, returning its result. If the caller is already on the main
+/// thread (e.g. a tray/menu event handler), `operation` runs inline instead of
+/// being queued through `run_on_main_thread` — queuing and then waiting on
+/// ourselves would deadlock, since the event loop can't service the queued
+/// closure while it's blocked here.
+fn run_on_main_thread_sync<F>(app: &AppHandle, operation: F) -> Result<(), String>
+where
+    F: FnOnce() -> Result<(), String> + Send + 'static,
+{
+    if is_main_thread() {
+        return operation();
+    }
+
+    let (tx, rx) = mpsc::channel::<Result<(), String>>();
+
+    app.run_on_main_thread(move || {
+        let _ = tx.send(operation());
+    })
+    .map_err(|error| error.to_string())?;
+
+    rx.recv()
+        .map_err(|_| "main thread closure was dropped without a result".to_string())?
+}
 
 pub fn overlay_label(display_id: &str) -> String {
     format!("overlay-{}", sanitize_label_component(display_id))
@@ -78,6 +117,11 @@ pub fn get_overlay_card_presentation(window_label: &str) -> Option<OverlayPresen
         .cloned()
 }
 
+/// Creates (or repositions) the native overlay for `display` synchronously:
+/// the call blocks until the Win32 work has actually run on the main thread
+/// and returns its real result. This keeps overlay creation ordered relative
+/// to whatever the caller does next (e.g. committing `is_blacked_out` state),
+/// and lets native failures propagate instead of being silently swallowed.
 pub fn show_overlay(app: &AppHandle, display: &DisplayState) -> Result<(), String> {
     let display = display.clone();
     let label = overlay_label(&display.id);
@@ -87,65 +131,48 @@ pub fn show_overlay(app: &AppHandle, display: &DisplayState) -> Result<(), Strin
         label, display.x, display.y, display.width, display.height, display.scale_factor
     );
 
-    let app = app.clone();
-    thread::spawn(move || {
-        let display_for_create = display.clone();
-        let label_for_log = label.clone();
-
-        if let Err(error) = app.run_on_main_thread(move || {
-            if let Err(error) = create_or_update_overlay(&display_for_create) {
-                error!(
-                    "show_overlay: failed to create native overlay {}: {}",
-                    label_for_log, error
-                );
-            }
-        }) {
-            error!(
-                "show_overlay: failed to schedule native overlay {}: {}",
-                label, error
-            );
-        }
-    });
-
-    Ok(())
+    let label_for_log = label.clone();
+    run_on_main_thread_sync(app, move || create_or_update_overlay(&display)).map_err(|error| {
+        error!(
+            "show_overlay: failed to create native overlay {}: {}",
+            label_for_log, error
+        );
+        error
+    })
 }
 
+/// Destroys the native overlay (and its companion card window) for
+/// `display_id` synchronously, returning the real result of `DestroyWindow`.
+/// See `show_overlay` for why this must block rather than fire-and-forget.
 pub fn close_overlay(app: &AppHandle, display_id: &str) -> Result<(), String> {
     let native_label = overlay_label(display_id);
     let card_label = overlay_card_label(display_id);
     let display_id = display_id.to_string();
-    let app = app.clone();
+    let app_for_card = app.clone();
 
     info!("close_overlay: {}", native_label);
 
-    thread::spawn(move || {
-        let native_log_label = native_label.clone();
-        let card_log_label = card_label.clone();
-        let app_handle = app.clone();
+    let native_label_for_log = native_label.clone();
+    let card_label_for_log = card_label.clone();
 
-        if let Err(error) = app.run_on_main_thread(move || {
-            if let Err(error) = destroy_overlay(&display_id) {
-                error!(
-                    "close_overlay: failed to destroy native overlay {}: {}",
-                    native_log_label, error
-                );
-            }
-
-            if let Err(error) = destroy_overlay_card_window(&app_handle, &card_label) {
-                error!(
-                    "close_overlay: failed to destroy overlay card {}: {}",
-                    card_log_label, error
-                );
-            }
-        }) {
+    run_on_main_thread_sync(app, move || {
+        let destroy_result = destroy_overlay(&display_id);
+        if let Err(ref error) = destroy_result {
             error!(
-                "close_overlay: failed to schedule destroy for {}: {}",
-                native_label, error
+                "close_overlay: failed to destroy native overlay {}: {}",
+                native_label_for_log, error
             );
         }
-    });
 
-    Ok(())
+        if let Err(error) = destroy_overlay_card_window(&app_for_card, &card_label) {
+            error!(
+                "close_overlay: failed to destroy overlay card {}: {}",
+                card_label_for_log, error
+            );
+        }
+
+        destroy_result
+    })
 }
 
 pub fn close_all_overlays(
@@ -221,6 +248,11 @@ fn sanitize_label_component(value: &str) -> String {
 fn create_or_update_overlay(display: &DisplayState) -> Result<(), String> {
     ensure_overlay_class_registered()?;
 
+    // The overlay is WS_EX_NOACTIVATE and never steals focus, so if the foreground
+    // window is on the display we're about to black out, hand focus elsewhere before
+    // (or as) the display goes dark, or it would keep receiving keystrokes unseen.
+    window_inventory::reassign_foreground_focus_away_from(display);
+
     let hwnd = {
         let windows = overlay_windows().lock().expect("overlay registry poisoned");
         windows.get(&display.id).map(|record| record.hwnd)
@@ -259,7 +291,8 @@ fn destroy_overlay(display_id: &str) -> Result<(), String> {
     let record = overlay_windows()
         .lock()
         .expect("overlay registry poisoned")
-        .remove(display_id);
+        .get(display_id)
+        .copied();
 
     let Some(record) = record else {
         return Ok(());
@@ -267,6 +300,10 @@ fn destroy_overlay(display_id: &str) -> Result<(), String> {
 
     let hwnd = record.hwnd as HWND;
     if unsafe { IsWindow(hwnd) } == 0 {
+        overlay_windows()
+            .lock()
+            .expect("overlay registry poisoned")
+            .remove(display_id);
         return Ok(());
     }
 
@@ -274,6 +311,14 @@ fn destroy_overlay(display_id: &str) -> Result<(), String> {
     if destroy_result == 0 {
         return Err(last_error("DestroyWindow failed"));
     }
+
+    // Only drop the registry entry once destruction has actually succeeded, so a
+    // failed DestroyWindow leaves the record in place (and the window trackable)
+    // instead of leaking an orphaned, still-visible overlay.
+    overlay_windows()
+        .lock()
+        .expect("overlay registry poisoned")
+        .remove(display_id);
 
     Ok(())
 }
@@ -374,7 +419,27 @@ unsafe extern "system" fn overlay_wnd_proc(
             unsafe { paint_overlay(hwnd) };
             0
         }
+        WM_WINDOWPOSCHANGING => {
+            unsafe { pin_topmost(lparam) };
+            unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+        }
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+    }
+}
+
+/// Any window subsequently marked always-on-top is inserted above the overlay in the
+/// topmost band (Win32 orders topmost windows by insertion recency). Re-assert
+/// HWND_TOPMOST on every pending z-order change so the overlay can't be covered by a
+/// third-party topmost window (media OSDs, other blackout utilities, etc.).
+unsafe fn pin_topmost(lparam: LPARAM) {
+    let pos = lparam as *mut WINDOWPOS;
+    if pos.is_null() {
+        return;
+    }
+
+    unsafe {
+        (*pos).hwndInsertAfter = HWND_TOPMOST;
+        (*pos).flags &= !SWP_NOZORDER;
     }
 }
 
@@ -445,7 +510,7 @@ fn sync_overlay_cards_on_main_thread(
         let window =
             create_or_update_overlay_card_window(app, display, &card_label, &presentation)?;
         window
-            .emit("overlay-card:update", presentation)
+            .emit_to(card_label.as_str(), "overlay-card:update", presentation)
             .map_err(|error| error.to_string())?;
     }
 
@@ -483,12 +548,14 @@ fn create_or_update_overlay_card_window(
     .resizable(false)
     .skip_taskbar(true)
     .always_on_top(true)
-    .visible(true)
-    .inner_size(width as f64, height as f64)
-    .position(card_rect.left as f64, card_rect.top as f64)
+    .visible(false)
     .build()
     .map_err(|error| error.to_string())?;
 
+    window
+        .set_position(position)
+        .map_err(|error| error.to_string())?;
+    window.set_size(size).map_err(|error| error.to_string())?;
     window.show().map_err(|error| error.to_string())?;
 
     Ok(window)

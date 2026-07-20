@@ -18,8 +18,15 @@ struct PlannedShortcut {
     action: ShortcutAction,
 }
 
-const DEFAULT_FOCUS_ACCELERATOR: &str = "Ctrl+Shift+Num0";
-const DEFAULT_DISPLAY_ACCELERATOR_PREFIX: &str = "Ctrl+Shift+Num";
+// Top-row digit keys are used (rather than the numpad) because Windows only
+// generates VK_NUMPADx while NumLock is on, which would make the registered
+// hotkey silently unreachable whenever NumLock is off, and laptops/TKL
+// keyboards without a numpad could never trigger it at all.
+const DEFAULT_FOCUS_ACCELERATOR: &str = "Ctrl+Shift+Digit0";
+const DEFAULT_DISPLAY_ACCELERATOR_PREFIX: &str = "Ctrl+Shift+Digit";
+// Previous defaults, kept only to detect and migrate untouched installs.
+const LEGACY_NUMPAD_FOCUS_ACCELERATOR: &str = "Ctrl+Shift+Num0";
+const LEGACY_NUMPAD_DISPLAY_ACCELERATOR_PREFIX: &str = "Ctrl+Shift+Num";
 const MAX_DEFAULT_DISPLAY_BINDINGS: usize = 9;
 
 fn validate_shortcut_policy(shortcut: &Shortcut) -> Result<(), String> {
@@ -99,12 +106,19 @@ pub fn ensure_default_shortcuts(app: &AppHandle, state: &SharedState) -> Result<
         state.settings = next_settings.clone();
     }
 
-    if let Err(error) = sync_registered_shortcuts(app, state) {
-        let mut locked_state = state.lock().expect("state poisoned");
-        locked_state.settings = previous_settings.clone();
-        drop(locked_state);
-        let _ = sync_registered_shortcuts(app, state);
-        return Err(error);
+    match sync_registered_shortcuts(app, state) {
+        Ok(failures) => {
+            for failure in &failures {
+                warn!("ensure_default_shortcuts: {failure}");
+            }
+        }
+        Err(error) => {
+            let mut locked_state = state.lock().expect("state poisoned");
+            locked_state.settings = previous_settings.clone();
+            drop(locked_state);
+            let _ = sync_registered_shortcuts(app, state);
+            return Err(error);
+        }
     }
 
     if let Err(error) = settings::save_settings(app, &next_settings) {
@@ -203,7 +217,15 @@ pub fn sanitize_shortcut_settings(
     })
 }
 
-pub fn sync_registered_shortcuts(app: &AppHandle, state: &SharedState) -> Result<(), String> {
+/// (Re)registers every planned shortcut with the OS.
+///
+/// Registration is best-effort per shortcut: a single accelerator already
+/// owned by another application (or a second Nocturn instance) no longer
+/// takes down every other hotkey. Shortcuts that fail to register are
+/// skipped and their description is returned in the `Vec`; `Err` is reserved
+/// for failures that make the whole sync impossible (e.g. `unregister_all`
+/// itself failing, or a stored accelerator that can no longer be parsed).
+pub fn sync_registered_shortcuts(app: &AppHandle, state: &SharedState) -> Result<Vec<String>, String> {
     let planned_shortcuts = build_planned_shortcuts(state)?;
 
     app.global_shortcut()
@@ -211,27 +233,30 @@ pub fn sync_registered_shortcuts(app: &AppHandle, state: &SharedState) -> Result
         .map_err(|error| format!("Failed to clear existing shortcuts: {error}"))?;
 
     let mut registered_shortcuts = HashMap::new();
+    let mut registration_failures = Vec::new();
 
     for planned in &planned_shortcuts {
-        app.global_shortcut()
-            .register(planned.shortcut)
-            .map_err(|error| {
-                let _ = app.global_shortcut().unregister_all();
-                describe_registration_error(&planned.accelerator, error)
-            })?;
+        if let Err(error) = app.global_shortcut().register(planned.shortcut) {
+            let message = describe_registration_error(&planned.accelerator, error);
+            warn!("sync_registered_shortcuts: {message}");
+            registration_failures.push(message);
+            continue;
+        }
 
         registered_shortcuts.insert(planned.shortcut.id(), planned.action.clone());
     }
 
     let mut locked_state = state.lock().expect("state poisoned");
     locked_state.registered_shortcuts = registered_shortcuts;
+    drop(locked_state);
 
     info!(
-        "sync_registered_shortcuts: registered {} shortcut(s)",
+        "sync_registered_shortcuts: registered {} of {} shortcut(s)",
+        planned_shortcuts.len() - registration_failures.len(),
         planned_shortcuts.len()
     );
 
-    Ok(())
+    Ok(registration_failures)
 }
 
 pub fn handle_shortcut_event(
@@ -377,6 +402,28 @@ fn default_initialized_settings(
             return Some(next_settings);
         }
 
+        // Untouched installs from before the Numpad -> top-row-digit default
+        // change: migrate them so the out-of-box hotkeys actually fire
+        // regardless of NumLock state or numpad availability.
+        let legacy_numpad_shortcut_settings = build_legacy_default_shortcut_settings_with_accelerators(
+            &ordered_displays,
+            LEGACY_NUMPAD_FOCUS_ACCELERATOR,
+            LEGACY_NUMPAD_DISPLAY_ACCELERATOR_PREFIX,
+        );
+        let next_numpad_shortcut_settings = build_default_shortcut_settings_with_accelerators(
+            &ordered_displays,
+            LEGACY_NUMPAD_FOCUS_ACCELERATOR,
+            LEGACY_NUMPAD_DISPLAY_ACCELERATOR_PREFIX,
+        );
+
+        if previous_settings.shortcut_settings == legacy_numpad_shortcut_settings
+            || previous_settings.shortcut_settings == next_numpad_shortcut_settings
+        {
+            let mut next_settings = previous_settings.clone();
+            next_settings.shortcut_settings = next_shortcut_settings;
+            return Some(next_settings);
+        }
+
         return None;
     }
 
@@ -406,6 +453,18 @@ fn default_initialized_settings(
 }
 
 fn build_default_shortcut_settings(displays: &[DisplayState]) -> ShortcutSettings {
+    build_default_shortcut_settings_with_accelerators(
+        displays,
+        DEFAULT_FOCUS_ACCELERATOR,
+        DEFAULT_DISPLAY_ACCELERATOR_PREFIX,
+    )
+}
+
+fn build_default_shortcut_settings_with_accelerators(
+    displays: &[DisplayState],
+    focus_accelerator: &str,
+    display_accelerator_prefix: &str,
+) -> ShortcutSettings {
     let display_bindings = displays
         .iter()
         .scan(HashSet::<usize>::new(), |used_slots, display| {
@@ -421,19 +480,31 @@ fn build_default_shortcut_settings(displays: &[DisplayState]) -> ShortcutSetting
             Some(slot.map(|slot| DisplayHotkeyBinding {
                 display_key: display.persistent_key.clone(),
                 display_label: display_shortcut_label(display),
-                accelerator: format!("{DEFAULT_DISPLAY_ACCELERATOR_PREFIX}{slot}"),
+                accelerator: format!("{display_accelerator_prefix}{slot}"),
             }))
         })
         .flatten()
         .collect();
 
     ShortcutSettings {
-        focus_mode_hotkey: Some(DEFAULT_FOCUS_ACCELERATOR.to_string()),
+        focus_mode_hotkey: Some(focus_accelerator.to_string()),
         display_bindings,
     }
 }
 
 fn build_legacy_default_shortcut_settings(displays: &[DisplayState]) -> ShortcutSettings {
+    build_legacy_default_shortcut_settings_with_accelerators(
+        displays,
+        DEFAULT_FOCUS_ACCELERATOR,
+        DEFAULT_DISPLAY_ACCELERATOR_PREFIX,
+    )
+}
+
+fn build_legacy_default_shortcut_settings_with_accelerators(
+    displays: &[DisplayState],
+    focus_accelerator: &str,
+    display_accelerator_prefix: &str,
+) -> ShortcutSettings {
     let display_bindings = displays
         .iter()
         .take(MAX_DEFAULT_DISPLAY_BINDINGS)
@@ -441,12 +512,12 @@ fn build_legacy_default_shortcut_settings(displays: &[DisplayState]) -> Shortcut
         .map(|(index, display)| DisplayHotkeyBinding {
             display_key: display.persistent_key.clone(),
             display_label: format!("Display {}", index + 1),
-            accelerator: format!("{DEFAULT_DISPLAY_ACCELERATOR_PREFIX}{}", index + 1),
+            accelerator: format!("{display_accelerator_prefix}{}", index + 1),
         })
         .collect();
 
     ShortcutSettings {
-        focus_mode_hotkey: Some(DEFAULT_FOCUS_ACCELERATOR.to_string()),
+        focus_mode_hotkey: Some(focus_accelerator.to_string()),
         display_bindings,
     }
 }
@@ -460,6 +531,17 @@ mod tests {
         assert!(parse_shortcut("KeyA").is_ok());
         assert!(parse_shortcut("F11").is_ok());
         assert!(parse_shortcut("Ctrl+Shift+Numpad0").is_ok());
+    }
+
+    #[test]
+    fn default_accelerators_are_top_row_digits_not_numpad() {
+        // Default hotkeys must not depend on NumLock or a physical numpad.
+        assert!(DEFAULT_FOCUS_ACCELERATOR.contains("Digit"));
+        assert!(DEFAULT_DISPLAY_ACCELERATOR_PREFIX.contains("Digit"));
+        assert!(parse_shortcut(DEFAULT_FOCUS_ACCELERATOR).is_ok());
+        for slot in 1..=MAX_DEFAULT_DISPLAY_BINDINGS {
+            assert!(parse_shortcut(&format!("{DEFAULT_DISPLAY_ACCELERATOR_PREFIX}{slot}")).is_ok());
+        }
     }
 
     #[test]

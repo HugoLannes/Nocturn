@@ -46,8 +46,15 @@ pub fn move_panel_to_display(app: &AppHandle, display: &DisplayState) -> Result<
         .get_webview_window("main")
         .ok_or_else(|| "Main panel window is missing.".to_string())?;
 
-    let target_x = display.x + (display.width as i32 - PANEL_WIDTH) / 2;
-    let target_y = display.y + (display.height as i32 - PANEL_HEIGHT) / 2;
+    // PANEL_WIDTH/HEIGHT are logical (they mirror tauri.conf.json), but
+    // display.x/y/width/height are physical pixels, so scale by the target
+    // display's factor before centering or the panel lands off-center (or
+    // overhangs the edge) on any monitor scaled above 100%.
+    let panel_width = (PANEL_WIDTH as f64 * display.scale_factor).round() as i32;
+    let panel_height = (PANEL_HEIGHT as f64 * display.scale_factor).round() as i32;
+
+    let target_x = display.x + (display.width as i32 - panel_width) / 2;
+    let target_y = display.y + (display.height as i32 - panel_height) / 2;
 
     panel
         .set_position(Position::Physical(PhysicalPosition::new(

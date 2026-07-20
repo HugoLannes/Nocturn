@@ -53,6 +53,14 @@ function displayShortcutTitle(display: Display, index: number) {
   return display.isPrimary ? "Primary display" : `Display ${index + 1}`;
 }
 
+function unavailableBindingTitle(displayLabel: string, connectedTitles: ReadonlySet<string>) {
+  // Bindings are keyed by a persistent connector key, so a stale binding's
+  // stored label (e.g. "Display 2") can collide with a currently connected
+  // display that now enumerates under the same reused GDI number — the two
+  // entries would otherwise be indistinguishable other than by section/hint.
+  return connectedTitles.has(displayLabel) ? `${displayLabel} (disconnected)` : displayLabel;
+}
+
 function displayShortcutHint(display: Display) {
   const descriptor = [display.manufacturer, display.model].filter(Boolean).join(" ");
   const meta = `${display.width}x${display.height}`;
@@ -139,6 +147,7 @@ export function SettingsPage({
   onResetToDefaults,
 }: SettingsPageProps) {
   const unavailableBindings = shortcutSettings.displayBindings.filter((binding) => !binding.isAvailable);
+  const connectedDisplayTitles = new Set(displays.map((display, index) => displayShortcutTitle(display, index)));
   const [isConfirming, setIsConfirming] = useState(false);
   const resetButtonRef = useRef<HTMLButtonElement | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -225,6 +234,9 @@ export function SettingsPage({
             {isConfirming ? "Confirm" : "Restore default"}
           </span>
         </button>
+        <span role="status" aria-live="polite" className="sr-only">
+          {isConfirming ? "Press again to confirm reset to default settings." : ""}
+        </span>
       </header>
 
       <div className="nocturn-scrollbar min-h-0 flex-1 overflow-y-auto px-[2px] pb-[6px] pr-1.5 pt-[2px] max-[560px]:pr-0.5">
@@ -315,7 +327,7 @@ export function SettingsPage({
                 {unavailableBindings.map((binding) => (
                   <ShortcutField
                     key={binding.displayKey}
-                    title={binding.displayLabel}
+                    title={unavailableBindingTitle(binding.displayLabel, connectedDisplayTitles)}
                     hint="Disconnected"
                     value={binding.accelerator}
                     disabled={isMutating}
