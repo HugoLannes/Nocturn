@@ -64,6 +64,15 @@ const updateToolbarBusyClass = "border-[rgba(var(--accent-rgb),0.34)] text-[#f6f
 
 const windowControlClass = "grid h-[26px] w-[26px] place-items-center rounded-[6px] border-0 bg-transparent text-[var(--text-secondary)] transition-[background,color] duration-[120ms] ease-out hover:bg-white/8 hover:text-[var(--text-primary)]";
 
+function navSegmentClass(isActive: boolean) {
+  return cn(
+    "relative z-[1] rounded-[6px] px-[10px] py-[1px] text-[12px] font-semibold leading-[1.3] tracking-[-0.01em] transition-colors duration-[160ms] ease-out",
+    isActive
+      ? "text-[color:var(--text-primary)]"
+      : "text-[color:var(--text-secondary)] hover:bg-white/[0.06] hover:text-[color:var(--text-primary)]",
+  );
+}
+
 function wakeButtonClass(isActive: boolean) {
   return cn(
     "flex h-10 w-full items-center justify-center rounded-[12px] border px-4 text-[var(--text-primary)] transition-[border-color,background,transform,box-shadow,opacity] duration-[140ms] ease-out enabled:hover:-translate-y-px enabled:hover:border-[rgba(var(--accent-rgb),0.34)] enabled:hover:[background:linear-gradient(180deg,rgba(var(--accent-rgb),0.16),rgba(255,255,255,0.04)_54%),rgba(255,255,255,0.04)] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_rgba(var(--accent-rgb),0.18)] disabled:cursor-not-allowed disabled:opacity-50 max-[560px]:h-9 max-[560px]:px-3",
@@ -202,9 +211,40 @@ function App() {
       )}
 
       <header
-        className="flex h-11 shrink-0 select-none items-center justify-between border-b border-[var(--border)] pl-[14px] pr-[10px] [-webkit-app-region:drag] [app-region:drag]"
+        className="relative flex h-11 shrink-0 select-none items-center justify-between border-b border-[var(--border)] pl-[14px] pr-[10px] [-webkit-app-region:drag] [app-region:drag]"
         data-tauri-drag-region
       >
+        <nav
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[9px] border border-white/8 bg-white/[0.03] p-[2px] [-webkit-app-region:no-drag] [app-region:no-drag]"
+          aria-label="Main navigation"
+        >
+          <div className="relative grid grid-cols-2">
+            <div
+              className={cn(
+                "absolute inset-y-0 left-0 w-1/2 rounded-[6px] bg-[rgba(var(--accent-rgb),0.2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(var(--accent-rgb),0.28)] transition-transform duration-[200ms] ease-out motion-reduce:transition-none",
+                activeView === "settings" ? "translate-x-full" : "translate-x-0",
+              )}
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              className={navSegmentClass(activeView === "displays")}
+              onClick={() => setActiveView("displays")}
+              aria-current={activeView === "displays" ? "page" : undefined}
+            >
+              Displays
+            </button>
+            <button
+              type="button"
+              className={navSegmentClass(activeView === "settings")}
+              onClick={() => setActiveView("settings")}
+              aria-current={activeView === "settings" ? "page" : undefined}
+            >
+              Settings
+            </button>
+          </div>
+        </nav>
+
         <div className="flex items-center gap-[10px]">
           <button
             type="button"
@@ -256,29 +296,6 @@ function App() {
             </Tooltip>
           )}
 
-          <button
-            type="button"
-            className={cn(
-              toolbarButtonClass,
-              activeView === "settings" && "border-[rgba(var(--accent-rgb),0.34)] bg-[rgba(var(--accent-rgb),0.16)] text-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(var(--accent-rgb),0.16)]",
-            )}
-            onClick={() => setActiveView((currentView) => (currentView === "settings" ? "displays" : "settings"))}
-            aria-label={activeView === "settings" ? "Close settings" : "Open settings"}
-            aria-pressed={activeView === "settings"}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M18 6h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M4 12h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M12 12h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M4 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M16 18h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <circle cx="16" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="10" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="14" cy="18" r="2" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
-
           <div className="flex gap-[3px] [-webkit-app-region:no-drag] [app-region:no-drag]">
             <button
               type="button"
@@ -305,6 +322,16 @@ function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-hidden px-4 pb-3 pt-[14px] max-[560px]:px-3 max-[560px]:pb-[10px] max-[560px]:pt-3">
+        <div
+          key={activeView}
+          className={cn(
+            "h-full min-h-0",
+            activeView === "settings"
+              ? "animate-[view-in-right_220ms_ease-out]"
+              : "animate-[view-in-left_220ms_ease-out]",
+            "motion-reduce:animate-none",
+          )}
+        >
         {activeView === "settings" ? (
           <SettingsPage
             displays={displays}
@@ -332,6 +359,7 @@ function App() {
             onRetry={() => void loadDisplays()}
           />
         )}
+        </div>
       </main>
 
       {mutationError && (
