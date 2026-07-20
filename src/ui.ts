@@ -10,7 +10,7 @@ export const monoTextStyle = {
 
 export const layoutEyebrowClass = "text-[11px] uppercase tracking-[0.1em] text-[rgba(226,232,240,0.62)]";
 
-export const layoutTitleClass = "block overflow-hidden whitespace-nowrap text-ellipsis pb-[0.14em] text-[24px] font-semibold leading-[1.12] tracking-[-0.03em] text-[var(--text-primary)] max-[560px]:text-[20px]";
+export const layoutTitleClass = "block overflow-hidden whitespace-nowrap text-ellipsis pb-[0.1em] text-[17px] font-semibold leading-[1.15] tracking-[-0.025em] text-[var(--text-primary)] max-[560px]:text-[15px]";
 
 export const displayStatePillClass = "flex items-center gap-1";
 

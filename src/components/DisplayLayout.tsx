@@ -173,10 +173,7 @@ export function DisplayLayout({
   return (
     <section className="flex h-full min-h-0 flex-col gap-[10px]" aria-label="Display arrangement">
       <header className="flex items-center justify-between gap-[14px] px-[2px] pt-[2px] max-[560px]:flex-col max-[560px]:items-stretch">
-        <div className="flex max-w-[460px] flex-col gap-[3px]">
-          <span className={layoutEyebrowClass} style={monoTextStyle}>Display control</span>
-          <h1 className={layoutTitleClass}>{headline}</h1>
-        </div>
+        <h1 className={cn(layoutTitleClass, "max-w-[460px]")}>{headline}</h1>
 
         <button
           type="button"

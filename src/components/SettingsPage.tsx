@@ -216,11 +216,8 @@ export function SettingsPage({
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3" aria-label="Settings">
-      <header className="flex shrink-0 items-end justify-between px-[2px] pt-[2px]">
-        <div>
-          <span className={layoutEyebrowClass} style={monoTextStyle}>Settings</span>
-          <h1 className={layoutTitleClass}>Set things your way.</h1>
-        </div>
+      <header className="flex shrink-0 items-center justify-between px-[2px] pt-[2px]">
+        <h1 className={layoutTitleClass}>Set things your way.</h1>
         <button
           ref={resetButtonRef}
           type="button"
@@ -264,17 +261,12 @@ export function SettingsPage({
 
           <SettingsSection eyebrow="Keyboard control" title="Hotkeys">
             <div className="px-[2px] pb-1 pt-2 text-[12px] leading-[1.55] text-[rgba(226,232,240,0.56)]">
-              Most keys can be assigned, including single keys. Windows-reserved shortcuts such as
-              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+F4</span>
-              ,
-              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+Tab</span>
-              ,
-              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Ctrl+Alt+Delete</span>
-              ,
-              <span className="mx-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>F12</span>
-              , and
-              <span className="ml-1 text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Win+*</span>
-              stay blocked.
+              Most keys can be assigned, including single keys. Windows-reserved shortcuts such as{" "}
+              <span className="text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+F4</span>,{" "}
+              <span className="text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Alt+Tab</span>,{" "}
+              <span className="text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Ctrl+Alt+Delete</span>,{" "}
+              <span className="text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>F12</span>, and{" "}
+              <span className="text-[rgba(226,232,240,0.72)]" style={monoTextStyle}>Win+*</span> stay blocked.
             </div>
 
             <div>
