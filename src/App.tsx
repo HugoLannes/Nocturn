@@ -66,10 +66,10 @@ const windowControlClass = "grid h-[26px] w-[26px] place-items-center rounded-[6
 
 function navSegmentClass(isActive: boolean) {
   return cn(
-    "rounded-[7px] px-[10px] py-[3px] text-[12px] font-semibold leading-[1.4] tracking-[-0.01em] transition-[background,color,box-shadow] duration-[140ms] ease-out",
+    "relative z-[1] rounded-[6px] px-[10px] py-[1px] text-[12px] font-semibold leading-[1.3] tracking-[-0.01em] transition-colors duration-[160ms] ease-out",
     isActive
-      ? "bg-[rgba(var(--accent-rgb),0.2)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(var(--accent-rgb),0.28)]"
-      : "text-[var(--text-secondary)] hover:bg-white/[0.06] hover:text-[var(--text-primary)]",
+      ? "text-[color:var(--text-primary)]"
+      : "text-[color:var(--text-secondary)] hover:bg-white/[0.06] hover:text-[color:var(--text-primary)]",
   );
 }
 
@@ -215,25 +215,34 @@ function App() {
         data-tauri-drag-region
       >
         <nav
-          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-[2px] rounded-[9px] border border-white/8 bg-white/[0.03] p-[2px] [-webkit-app-region:no-drag] [app-region:no-drag]"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[9px] border border-white/8 bg-white/[0.03] p-[2px] [-webkit-app-region:no-drag] [app-region:no-drag]"
           aria-label="Main navigation"
         >
-          <button
-            type="button"
-            className={navSegmentClass(activeView === "displays")}
-            onClick={() => setActiveView("displays")}
-            aria-current={activeView === "displays" ? "page" : undefined}
-          >
-            Displays
-          </button>
-          <button
-            type="button"
-            className={navSegmentClass(activeView === "settings")}
-            onClick={() => setActiveView("settings")}
-            aria-current={activeView === "settings" ? "page" : undefined}
-          >
-            Settings
-          </button>
+          <div className="relative grid grid-cols-2">
+            <div
+              className={cn(
+                "absolute inset-y-0 left-0 w-1/2 rounded-[6px] bg-[rgba(var(--accent-rgb),0.2)] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_0_1px_rgba(var(--accent-rgb),0.28)] transition-transform duration-[200ms] ease-out motion-reduce:transition-none",
+                activeView === "settings" ? "translate-x-full" : "translate-x-0",
+              )}
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              className={navSegmentClass(activeView === "displays")}
+              onClick={() => setActiveView("displays")}
+              aria-current={activeView === "displays" ? "page" : undefined}
+            >
+              Displays
+            </button>
+            <button
+              type="button"
+              className={navSegmentClass(activeView === "settings")}
+              onClick={() => setActiveView("settings")}
+              aria-current={activeView === "settings" ? "page" : undefined}
+            >
+              Settings
+            </button>
+          </div>
         </nav>
 
         <div className="flex items-center gap-[10px]">
@@ -313,6 +322,16 @@ function App() {
       </header>
 
       <main className="min-h-0 flex-1 overflow-hidden px-4 pb-3 pt-[14px] max-[560px]:px-3 max-[560px]:pb-[10px] max-[560px]:pt-3">
+        <div
+          key={activeView}
+          className={cn(
+            "h-full min-h-0",
+            activeView === "settings"
+              ? "animate-[view-in-right_220ms_ease-out]"
+              : "animate-[view-in-left_220ms_ease-out]",
+            "motion-reduce:animate-none",
+          )}
+        >
         {activeView === "settings" ? (
           <SettingsPage
             displays={displays}
@@ -340,6 +359,7 @@ function App() {
             onRetry={() => void loadDisplays()}
           />
         )}
+        </div>
       </main>
 
       {mutationError && (
