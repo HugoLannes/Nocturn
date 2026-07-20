@@ -1,13 +1,22 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import App from "./App";
 import { OverlayCardApp } from "./OverlayCardApp";
 import "./index.css";
 
-const currentWindow = getCurrentWebviewWindow();
-const isOverlayCardWindow = currentWindow.label.startsWith("overlay-card-");
+async function bootstrap() {
+  // Plain-browser dev mode (`npm run dev` outside Tauri): install IPC mocks
+  // before anything touches the Tauri APIs.
+  if (import.meta.env.DEV && !("__TAURI_INTERNALS__" in window)) {
+    await import("./dev/mocks");
+  }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  isOverlayCardWindow ? <OverlayCardApp /> : <App />,
-);
+  const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  const isOverlayCardWindow = getCurrentWebviewWindow().label.startsWith("overlay-card-");
+
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    isOverlayCardWindow ? <OverlayCardApp /> : <App />,
+  );
+}
+
+void bootstrap();
