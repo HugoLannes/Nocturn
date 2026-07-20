@@ -31,11 +31,16 @@ Useful at night, during focused work, or anytime a spare monitor is just extra l
 - **Instant restore** — bring everything back immediately, or wake all displays at once.
 - **Safety guard** — always keeps at least one display active; the panel moves out of the way automatically.
 - **Tray-resident** — runs quietly in the system tray, opens on click.
-- **Auto-updater** — checks for new releases and updates in the background.
+- **Auto-updater** — periodically checks for new releases while running and installs with one click.
 
 ## Install
 
 Download the latest `.msi` installer from [**GitHub Releases**](https://github.com/HugoLannes/Nocturn/releases/latest).
+
+> **Note:** the installer is not yet signed with a Windows Authenticode certificate, so
+> Windows SmartScreen may show an "unknown publisher" warning on first run (choose
+> **More info → Run anyway**). Updater artifacts are still integrity-checked via minisign,
+> so auto-updates are verified even though the installer itself is unsigned.
 
 ## Website
 
@@ -70,7 +75,7 @@ npm run tauri:build    # production installer
 
 ## Contributing
 
-Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/Nocturn/issues).
+Issues and pull requests are welcome. If you run into a bug or have a feature idea, [open an issue](https://github.com/HugoLannes/Nocturn/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and the release/versioning process.
 
 ## License
 

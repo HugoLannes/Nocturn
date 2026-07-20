@@ -115,6 +115,7 @@ pub fn query_monitor_identities() -> HashMap<String, MonitorIdentity> {
 
             let gdi_name = wide_to_string(&source.viewGdiDeviceName);
             let friendly_name = wide_to_string(&target.monitorFriendlyDeviceName);
+            let device_path = wide_to_string(&target.monitorDevicePath);
 
             // Decode manufacturer from EDID PNP ID (always present)
             let pnp_code = decode_pnp_id(target.edidManufactureId);
@@ -123,11 +124,9 @@ pub fn query_monitor_identities() -> HashMap<String, MonitorIdentity> {
             // Model = friendly name with manufacturer prefix stripped
             let model = extract_model(&friendly_name, &manufacturer, &pnp_code);
             let persistent_key = build_persistent_display_key(
-                path.sourceInfo.adapterId.HighPart as u32,
-                path.sourceInfo.adapterId.LowPart,
-                path.sourceInfo.id,
-                path.targetInfo.id,
-                &gdi_name,
+                target.edidManufactureId,
+                target.edidProductCodeId,
+                &device_path,
             );
 
             map.insert(
@@ -144,17 +143,27 @@ pub fn query_monitor_identities() -> HashMap<String, MonitorIdentity> {
     }
 }
 
+/// Build a display identity key that survives reboots and GPU driver restarts.
+///
+/// The adapter LUID (`path.sourceInfo.adapterId`) is boot-scoped and gets
+/// reassigned on every reboot or driver reset, so it cannot be used here. The
+/// EDID manufacturer/product codes plus the monitor's device instance path
+/// (`monitorDevicePath`, e.g. `\\?\DISPLAY#DEL4074#...#{GUID}`) are tied to the
+/// physical monitor and the port it is connected to, and remain stable across
+/// reboots.
 fn build_persistent_display_key(
-    adapter_high: u32,
-    adapter_low: u32,
-    source_id: u32,
-    target_id: u32,
-    gdi_name: &str,
+    edid_manufacture_id: u16,
+    edid_product_code_id: u16,
+    device_path: &str,
 ) -> String {
-    format!(
-        "connector:{adapter_high:08X}:{adapter_low:08X}:{source_id}:{target_id}:{}",
-        gdi_name.to_uppercase()
-    )
+    if device_path.is_empty() {
+        format!("edid:{edid_manufacture_id:04X}:{edid_product_code_id:04X}")
+    } else {
+        format!(
+            "edid:{edid_manufacture_id:04X}:{edid_product_code_id:04X}:{}",
+            device_path.to_uppercase()
+        )
+    }
 }
 
 /// Decode a 16-bit EDID manufacturer ID into a 3-letter PNP code.
