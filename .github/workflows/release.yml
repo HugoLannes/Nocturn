@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -19,6 +21,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
 
       - name: Ensure workflow runs from main
@@ -48,35 +51,60 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Verify app version metadata
+      - name: Compute next version and stamp manifests
         shell: bash
         run: |
           node <<'EOF'
           const fs = require('node:fs');
+          const cp = require('node:child_process');
 
-          const packageJsonVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
-          const tauriConfigVersion = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')).version;
-          const cargoToml = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
-          const cargoVersionMatch = cargoToml.match(/^version\s*=\s*"([^"]+)"/m);
-
-          if (!cargoVersionMatch) {
-            console.error('Unable to read version from src-tauri/Cargo.toml.');
+          // Series (major.minor) is controlled by package.json; the patch is
+          // auto-incremented from the highest existing release tag so every push
+          // to main yields a strictly-newer installable version.
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const [maj, min, basePatch] = pkg.version.split('.').map((n) => parseInt(n, 10));
+          if ([maj, min, basePatch].some((n) => !Number.isInteger(n))) {
+            console.error(`Cannot parse a semver x.y.z from package.json version "${pkg.version}".`);
             process.exit(1);
           }
+          const series = `${maj}.${min}`;
 
-          const versions = {
-            packageJson: packageJsonVersion,
-            tauriConfig: tauriConfigVersion,
-            cargoToml: cargoVersionMatch[1],
-          };
+          const patches = cp.execSync('git tag -l', { encoding: 'utf8' })
+            .split('\n')
+            .map((t) => t.trim().replace(/^v/, ''))
+            .filter((t) => t.startsWith(`${series}.`))
+            .map((t) => parseInt(t.split('.')[2], 10))
+            .filter((n) => Number.isInteger(n));
 
-          if (new Set(Object.values(versions)).size !== 1) {
-            console.error('Version mismatch detected:', versions);
+          // First release of a new series starts at package.json's patch; otherwise
+          // one past the highest tagged patch (never below the manifest value).
+          const nextPatch = patches.length
+            ? Math.max(Math.max(...patches) + 1, basePatch)
+            : basePatch;
+          const version = `${series}.${nextPatch}`;
+
+          // Stamp all three manifests so the built app, its Cargo crate, and the
+          // updater latest.json all carry the same version. Not committed back to
+          // the repo (that would loop the workflow); this only affects the build.
+          pkg.version = version;
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+
+          const tauriPath = 'src-tauri/tauri.conf.json';
+          const tauri = JSON.parse(fs.readFileSync(tauriPath, 'utf8'));
+          tauri.version = version;
+          fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + '\n');
+
+          const cargoPath = 'src-tauri/Cargo.toml';
+          const cargo = fs.readFileSync(cargoPath, 'utf8');
+          const stampedCargo = cargo.replace(/^version\s*=\s*"[^"]+"/m, `version = "${version}"`);
+          if (stampedCargo === cargo) {
+            console.error('Could not stamp version into src-tauri/Cargo.toml.');
             process.exit(1);
           }
+          fs.writeFileSync(cargoPath, stampedCargo);
 
-          fs.appendFileSync(process.env.GITHUB_ENV, `APP_VERSION=${packageJsonVersion}\n`);
-          console.log(`Release version ${packageJsonVersion} verified.`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `APP_VERSION=${version}\n`);
+          console.log(`Next release version: ${version}`);
           EOF
 
       - name: Ensure release tag does not already exist
@@ -108,6 +136,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: Nocturn v__VERSION__
           releaseBody: |
+            Automated build from the latest push to `main`.
             See the assets attached to this release to install or auto-update Nocturn.
           releaseDraft: true
           prerelease: false
